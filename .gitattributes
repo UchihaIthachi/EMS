@@ -1,0 +1,8 @@
+# Ensure all text files use LF
+* text=auto
+
+# Force LF for XML files
+*.xml text eol=lf
+
+# Force CRLF for Windows-specific files
+*.bat text eol=crlf
