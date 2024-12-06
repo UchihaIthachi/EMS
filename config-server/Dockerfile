@@ -5,7 +5,7 @@ FROM openjdk:17-jdk-slim
 VOLUME /tmp
 
 # Copy the built JAR file
-COPY ../config-server/target/config-server-*.jar app.jar
+COPY ./target/config-server-*.jar app.jar
 
 # Expose the port on which the service runs
 EXPOSE 8888

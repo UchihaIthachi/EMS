@@ -5,7 +5,7 @@ FROM openjdk:17-jdk-slim
 VOLUME /tmp
 
 # Copy the built JAR file
-COPY ../department-service/target/department-service-*.jar app.jar
+COPY ./target/department-service-*.jar app.jar
 
 # Expose the port on which the service runs
 EXPOSE 8081

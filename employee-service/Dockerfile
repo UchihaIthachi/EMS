@@ -5,7 +5,7 @@ FROM openjdk:17-jdk-slim
 VOLUME /tmp
 
 # Copy the built JAR file
-COPY ../employee-service/target/employee-service-*.jar app.jar
+COPY ./target/employee-service-*.jar app.jar
 
 # Expose the port on which the service runs
 EXPOSE 8082

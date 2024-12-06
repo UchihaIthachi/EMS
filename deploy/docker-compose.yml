@@ -1,9 +1,8 @@
-version: "3.8"
 services:
   service-registry:
     build:
-      context: .
-      dockerfile: Dockerfile.service-registry
+      context: ../service-registry
+      dockerfile: Dockerfile
     ports:
       - "${SERVICE_REGISTRY_PORT}:${SERVICE_REGISTRY_PORT}"
     environment:
@@ -16,8 +15,8 @@ services:
 
   api-gateway:
     build:
-      context: .
-      dockerfile: Dockerfile.api-gateway
+      context: ../api-gateway
+      dockerfile: Dockerfile
     container_name: api-gateway
     ports:
       - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}"
@@ -35,8 +34,8 @@ services:
 
   config-server:
     build:
-      context: .
-      dockerfile: Dockerfile.config-server
+      context: ../config-server
+      dockerfile: Dockerfile
     ports:
       - "8888:8888"
     environment:
@@ -51,8 +50,8 @@ services:
 
   department-service:
     build:
-      context: .
-      dockerfile: Dockerfile.department
+      context: ../department-service
+      dockerfile: Dockerfile
     ports:
       - "${DEPARTMENT_SERVICE_PORT}:${DEPARTMENT_SERVICE_PORT}"
     environment:
@@ -71,8 +70,8 @@ services:
 
   employee-service:
     build:
-      context: .
-      dockerfile: Dockerfile.employee
+      context: ../employee-service
+      dockerfile: Dockerfile
     ports:
       - "${EMPLOYEE_SERVICE_PORT}:${EMPLOYEE_SERVICE_PORT}"
     environment:

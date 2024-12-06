@@ -5,7 +5,7 @@ FROM openjdk:17-jdk-slim
 VOLUME /tmp
 
 # Copy the built JAR file
-COPY ../service-registry/target/service-registry-*.jar app.jar
+COPY ./target/service-registry-*.jar app.jar
 
 # Expose the port on which the service runs
 EXPOSE 8761

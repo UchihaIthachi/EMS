@@ -5,7 +5,7 @@ FROM openjdk:17-jdk-slim
 VOLUME /tmp
 
 # Copy the built JAR file
-COPY ../api-gateway/target/api-gateway-*.jar app.jar
+COPY ./target/api-gateway-*.jar app.jar
 
 # Expose the port on which the service runs
 EXPOSE 8080
