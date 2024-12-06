@@ -1,6 +1,23 @@
-# Employee Management System (EMS) - Backend
+Here's the updated README with additional design patterns included:
 
-This repository contains the backend implementation of an **Employee Management System (EMS)**. The project is built using **Spring Boot** with a modern microservices architecture to showcase the use of advanced Spring Cloud features, distributed systems design, and inter-service communication.
+---
+
+# **Employee Management System (EMS) - Backend**
+
+This repository contains the backend implementation of an **Employee Management System (EMS)**. The project leverages **Spring Boot** in a modern microservices architecture, demonstrating advanced Spring Cloud capabilities, distributed systems design, and inter-service communication.
+
+---
+
+## **Table of Contents**
+
+1. [Project Highlights](#project-highlights)
+2. [System Architecture](#system-architecture)
+3. [Design Patterns](#design-patterns)
+4. [Microservices Overview](#microservices-overview)
+5. [API Documentation](#api-documentation)
+6. [Setup Instructions](#setup-instructions)
+7. [Future Enhancements](#future-enhancements)
+8. [Contributors](#contributors)
 
 ---
 
@@ -18,51 +35,67 @@ This repository contains the backend implementation of an **Employee Management 
 
 ## **System Architecture**
 
-The project follows a **microservices-based approach** with a modular and layered architecture.
+The project adopts a **microservices-based approach** with a modular and layered architecture.
 
 ### **Layered Architecture**
 
-Since the **presentation layer** is not yet developed, a future Angular-based implementation is planned for a front-end interface. Currently, the backend provides RESTful APIs accessible via **Postman**.
+Currently, the backend exposes RESTful APIs accessible via **Postman**. A **front-end interface** using **Angular** is planned for future development. The backend architecture includes the following key components:
 
-1. **Service Registry/Discovery**:
-
-   - **Netflix Eureka** is used for dynamic service discovery, enabling seamless communication between services without hardcoded URLs.
-
-2. **Configuration Management**:
-
-   - A **Spring Cloud Config Server** pulls configuration files from a Git-based repository for centralized configuration.
-
-3. **Circuit Breaker**:
-
-   - Built using **Resilience4j** for fault tolerance.
-   - Integrated with **Spring Cloud Bus** for event-driven communication and **RabbitMQ** as a message broker.
-
-4. **Gateway Layer**:
-   - Uses Spring Cloud Gateway to handle API routing, load balancing, and centralized request management.
+1. **Service Registry**: Centralized discovery of microservices.
+2. **API Gateway**: Handles routing, authentication, and load balancing.
+3. **Distributed Tracing**: Sleuth and Zipkin enable seamless debugging and monitoring of requests.
+4. **Asynchronous Communication**: RabbitMQ facilitates event-driven messaging.
 
 ---
 
-## **Key Patterns Used**
+## **Design Patterns**
 
-### 1. **Service Registry/Discovery Pattern**
+This project employs several key design patterns to ensure maintainability, scalability, and performance:
 
-- **Netflix Eureka** provides dynamic registration and discovery of microservices.
-- Services register themselves with Eureka and interact seamlessly.
+### **1. Repository Pattern**
 
-### 2. **Config Server Pattern**
+The data access layer is abstracted using repositories to separate data access logic from business logic.
 
-- Centralized configuration management using **Spring Cloud Config Server**.
-- Configurations are versioned and stored in a Git repository, allowing dynamic updates.
+### **2. Data Transfer Object (DTO) Pattern**
 
-### 3. **Circuit Breaker Pattern**
+DTOs encapsulate only the required fields for communication, reducing the payload size and improving performance.
 
-- Resilience4j prevents cascading failures and manages fallback responses.
-- Integrated with Spring Cloud Bus to propagate failure events.
+### **3. Gateway Pattern**
 
-### 4. **API Gateway Pattern**
+An **API Gateway** is used to handle client requests and route them to the appropriate microservices. This pattern also centralizes:
 
-- Centralized routing and management of all service requests.
-- Implements load balancing and enables monitoring of traffic.
+- **Authentication**
+- **Load balancing**
+- **Routing logic**
+
+### **4. Database per Service Pattern**
+
+Each microservice has its own dedicated database to maintain:
+
+- Loose coupling
+- Data autonomy
+
+### **5. Sidecar Pattern**
+
+Dedicated **sidecar microservices** are attached for auxiliary tasks like:
+
+- Monitoring
+- Logging
+- Authentication
+
+### **6. Service Registry Pattern**
+
+A **service registry** is implemented to:
+
+- Automatically locate and register services
+- Enable dynamic discovery for seamless inter-service communication
+
+### **7. Circuit Breaker Pattern**
+
+Resilience4j provides a **circuit breaker** to prevent cascading failures by:
+
+- Temporarily stopping requests to failing services
+- Providing fallback mechanisms
 
 ---
 
@@ -70,94 +103,113 @@ Since the **presentation layer** is not yet developed, a future Angular-based im
 
 1. **Service Registry**:
 
-   - **Netflix Eureka** for dynamic service registration and discovery.
-   - [http://localhost:8761](http://localhost:8761)
+   - **Netflix Eureka** dynamically registers and discovers microservices.
+   - URL: [http://localhost:8761](http://localhost:8761)
 
 2. **API Gateway**:
 
-   - Routes requests to appropriate services and provides entry-point functionality.
-   - [http://localhost:8080](http://localhost:8080)
+   - Centralized entry point for client requests.
+   - URL: [http://localhost:8080](http://localhost:8080)
 
 3. **Config Server**:
 
-   - Centralized configuration for all services.
-   - Repository: `https://github.com/dulaaann/CONFIG-REPO.git`
-   - Default Label: `main`
+   - Centralized configuration stored in a Git repository.
+   - Repository: [Config Repo](https://github.com/dulaaann/CONFIG-REPO.git)
    - Port: `8888`
 
 4. **Employee Service**:
 
    - CRUD operations for employee management.
-   - Implements a circuit breaker for fault tolerance.
+   - Integrates Resilience4j for fault tolerance.
 
 5. **Department Service**:
 
    - Handles department-related operations.
-   - Integrates with Employee Service via Feign Client.
+   - Communicates with Employee Service via Feign Clients.
 
 6. **RabbitMQ**:
 
-   - Asynchronous messaging for inter-service communication.
+   - Enables asynchronous communication for event-driven microservices.
    - Management Console: [http://localhost:15672](http://localhost:15672)
 
 7. **Zipkin**:
-   - Distributed tracing for tracking service requests.
+   - Tracks distributed requests for monitoring and debugging.
    - Dashboard: [http://localhost:9411](http://localhost:9411)
 
 ---
 
-## **API Testing**
+## **API Documentation**
 
-- **Postman Collection**:  
-  Postman is used for testing the REST APIs.  
-  You can import the provided `Postman Collection` to explore and test endpoints.
+### **Employee Service**
+
+- **GET /employees/{id}**  
+  Retrieves an employee's details by ID.
+- **POST /employees**  
+  Adds a new employee record.
+- **PUT /employees/{id}**  
+  Updates an employee record.
+- **DELETE /employees/{id}**  
+  Deletes an employee record.
+
+### **Department Service**
+
+- **GET /departments/{id}**  
+  Retrieves a department by ID.
+- **POST /departments**  
+  Adds a new department record.
 
 ---
 
 ## **Setup Instructions**
 
-### Prerequisites
+### **Prerequisites**
 
 - Docker
 - JDK 11+
 - Maven
 - MySQL
 
-### Steps to Run
+### **Steps to Run**
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/your-repo.git
    cd your-repo
    ```
+
 2. Build the project:
+
    ```bash
    mvn clean package
    ```
+
 3. Start services with Docker Compose:
+
    ```bash
    docker-compose up --build
    ```
+
 4. Access the services:
-   - Service Registry: [http://localhost:8761](http://localhost:8761)
-   - API Gateway: [http://localhost:8080](http://localhost:8080)
-   - Config Server: [http://localhost:8888](http://localhost:8888)
+   - **Service Registry**: [http://localhost:8761](http://localhost:8761)
+   - **API Gateway**: [http://localhost:8080](http://localhost:8080)
+   - **Config Server**: [http://localhost:8888](http://localhost:8888)
 
 ---
 
 ## **Future Enhancements**
 
-- Implement a **presentation layer** using **Angular**.
-- Add caching using Redis for frequently accessed data.
-- Scale microservices with Kubernetes.
-- Integrate **Spring Security** with OAuth2 for secure APIs.
-- Implement a centralized logging solution with **ELK Stack**.
+- Integrate Redis for caching.
+- Add centralized logging with the ELK stack.
+- Implement Kubernetes for service scaling.
+- Enhance API security using OAuth2.
+- Develop a front-end interface using Angular.
 
 ---
 
 ## **Contributors**
 
-Harshana Lakshara
+**Harshana Lakshara**
 
 - **Role**: Designer and Developer
 - **Contact**: harshana@example.com
@@ -165,4 +217,8 @@ Harshana Lakshara
 
 ---
 
-**License**: This project is licensed under the MIT License.
+## **License**
+
+This project is licensed under the MIT License.
+
+---

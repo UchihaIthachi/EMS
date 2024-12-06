@@ -41,7 +41,7 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=CONFIG-SERVER
       - SERVER_PORT=8888
-      - CONFIG_REPO_URI=https://github.com/dulaaann/CONFIG-REPO.git
+      - CONFIG_REPO_URI=https://github.com/UchihaIthachi/EMS/tree/main/config-server
       - CONFIG_CLONE_ON_START=true
       - CONFIG_DEFAULT_LABEL=main
       - EUREKA_SERVER=http://service-registry:${SERVICE_REGISTRY_PORT}/eureka
