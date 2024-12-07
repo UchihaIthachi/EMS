@@ -1,9 +1,9 @@
-package com.springbootacademy.departmentservice.service.impl;
+package com.springbootacademy.organizationservice.service.impl;
 
-import com.springbootacademy.departmentservice.dto.DepartmentDTO;
-import com.springbootacademy.departmentservice.entity.Department;
-import com.springbootacademy.departmentservice.repository.DepartmentRepository;
-import com.springbootacademy.departmentservice.service.DepartmentService;
+import com.springbootacademy.organizationservice.dto.DepartmentDTO;
+import com.springbootacademy.organizationservice.entity.Department;
+import com.springbootacademy.organizationservice.repository.DepartmentRepository;
+import com.springbootacademy.organizationservice.service.DepartmentService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 

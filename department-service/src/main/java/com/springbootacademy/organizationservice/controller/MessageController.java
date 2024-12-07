@@ -1,4 +1,4 @@
-package com.springbootacademy.departmentservice.controller;
+package com.springbootacademy.organizationservice.controller;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.context.config.annotation.RefreshScope;

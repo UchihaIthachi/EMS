@@ -1,4 +1,4 @@
-package com.springbootacademy.departmentservice.dto;
+package com.springbootacademy.organizationservice.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

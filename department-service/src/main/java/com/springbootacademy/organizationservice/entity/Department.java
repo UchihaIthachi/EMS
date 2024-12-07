@@ -1,4 +1,4 @@
-package com.springbootacademy.departmentservice.entity;
+package com.springbootacademy.organizationservice.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

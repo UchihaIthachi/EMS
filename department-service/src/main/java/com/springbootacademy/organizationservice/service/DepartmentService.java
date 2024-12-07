@@ -1,6 +1,6 @@
-package com.springbootacademy.departmentservice.service;
+package com.springbootacademy.organizationservice.service;
 
-import com.springbootacademy.departmentservice.dto.DepartmentDTO;
+import com.springbootacademy.organizationservice.dto.DepartmentDTO;
 import org.springframework.stereotype.Service;
 
 @Service

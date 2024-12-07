@@ -1,9 +1,8 @@
-package com.springbootacademy.departmentservice.controller;
+package com.springbootacademy.organizationservice.controller;
 
-import com.springbootacademy.departmentservice.dto.DepartmentDTO;
-import com.springbootacademy.departmentservice.service.DepartmentService;
+import com.springbootacademy.organizationservice.dto.DepartmentDTO;
+import com.springbootacademy.organizationservice.service.DepartmentService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
