@@ -4,33 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ceb244f0-bc57-4803-adb8-8caaef2d0a62" name="Changes" comment="add deply configures">
-      <change afterPath="$PROJECT_DIR$/organization-service/src/main/java/com/ems/organization_service/controller/OrganizationController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/organization-service/src/main/java/com/ems/organization_service/dto/OrganizationDto.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/organization-service/src/main/java/com/ems/organization_service/entity/Organization.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/organization-service/src/main/java/com/ems/organization_service/mapper/OrganizationMapper.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/organization-service/src/main/java/com/ems/organization_service/repository/OrganizationRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/organization-service/src/main/java/com/ems/organization_service/service/OrganizationService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/organization-service/src/main/java/com/ems/organization_service/service/impl/OrganizationServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+    <list default="true" id="ceb244f0-bc57-4803-adb8-8caaef2d0a62" name="Changes" comment="add organization service">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config-server/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/config-server/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/DepartmentServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/organizationservice/DepartmentServiceApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/controller/DepartmentController.java" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/organizationservice/controller/DepartmentController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/controller/MessageController.java" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/organizationservice/controller/MessageController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/dto/DepartmentDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/organizationservice/dto/DepartmentDTO.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/entity/Department.java" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/organizationservice/entity/Department.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/repository/DepartmentRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/organizationservice/repository/DepartmentRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/service/DepartmentService.java" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/organizationservice/service/DepartmentService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/service/impl/DepartmentServiceIMPL.java" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/organizationservice/service/impl/DepartmentServiceIMPL.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/test/java/com/springbootacademy/departmentservice/DepartmentServiceApplicationTests.java" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/test/java/com/springbootacademy/organizationservice/DepartmentServiceApplicationTests.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/department-service/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deploy/.env" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/.env" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/deploy/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/employee-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/employee-service/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/employee-service/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/employee-service/Dockerfile" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -48,6 +27,18 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;UchihaIthachi&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/UchihaIthachi/Marketplace_Platform.git&quot;,
+    &quot;accountId&quot;: &quot;6e18133f-681c-4f0c-beca-9d1fd1cf1894&quot;
+  }
+}</component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
@@ -109,7 +100,7 @@
     ]
   }
 }</component>
-  <component name="RunManager" selected="Spring Boot.OrganizationServiceApplication">
+  <component name="RunManager" selected="Spring Boot.ConfigServerApplication">
     <configuration default="true" type="JetRunConfigurationType">
       <module name="Marketplace_Platform" />
       <method v="2">
@@ -201,7 +192,8 @@
       <workItem from="1733515631743" duration="17413000" />
       <workItem from="1733555764874" duration="6165000" />
       <workItem from="1733562518063" duration="971000" />
-      <workItem from="1733563890320" duration="5998000" />
+      <workItem from="1733563890320" duration="6150000" />
+      <workItem from="1733698147618" duration="3713000" />
     </task>
     <task id="LOCAL-00001" summary="add deply configures">
       <created>1733398213543</created>
@@ -210,7 +202,15 @@
       <option name="project" value="LOCAL" />
       <updated>1733398213543</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="add organization service">
+      <option name="closed" value="true" />
+      <created>1733574329304</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1733574329304</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -230,7 +230,8 @@
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <MESSAGE value="add deply configures" />
-    <option name="LAST_COMMIT_MESSAGE" value="add deply configures" />
+    <MESSAGE value="add organization service" />
+    <option name="LAST_COMMIT_MESSAGE" value="add organization service" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

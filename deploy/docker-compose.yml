@@ -1,4 +1,54 @@
 services:
+
+  rabbitmq:
+    image: rabbitmq:management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  zipkin:
+    image: openzipkin/zipkin
+    ports:
+      - "9411:9411"
+
+  mysql_department:
+    image: mysql:8
+    ports:
+      - "3307:3306" # Expose on a different port for department DB
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DEPARTMENT_DB}
+    volumes:
+      - mysql_department_data:/var/lib/mysql
+
+  mysql_employee:
+    image: mysql:8
+    ports:
+      - "3308:3306" # Expose on a different port for employee DB
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${EMPLOYEE_DB}
+    volumes:
+      - mysql_employee_data:/var/lib/mysql
+
+  config-server:
+    build:
+      context: ../config-server
+      dockerfile: Dockerfile
+    ports:
+      - "8888:8888"
+    environment:
+      - SPRING_APPLICATION_NAME=CONFIG-SERVER
+      - SERVER_PORT=8888
+      - CONFIG_REPO_URI=https://github.com/UchihaIthachi/configuration-server-repo
+      - CONFIG_CLONE_ON_START=true
+      - CONFIG_DEFAULT_LABEL=main
+      - GIT_USERNAME=UchihaIthachi
+      - GIT_PAT=${GIT_PAT}
+      - EUREKA_SERVER=http://service-registry:${SERVICE_REGISTRY_PORT}/eureka
+    depends_on:
+      - service-registry
+
   service-registry:
     build:
       context: ../service-registry
@@ -32,21 +82,6 @@ services:
     networks:
       - ems-network
 
-  config-server:
-    build:
-      context: ../config-server
-      dockerfile: Dockerfile
-    ports:
-      - "8888:8888"
-    environment:
-      - SPRING_APPLICATION_NAME=CONFIG-SERVER
-      - SERVER_PORT=8888
-      - CONFIG_REPO_URI=https://github.com/UchihaIthachi/EMS/tree/main/config-server
-      - CONFIG_CLONE_ON_START=true
-      - CONFIG_DEFAULT_LABEL=main
-      - EUREKA_SERVER=http://service-registry:${SERVICE_REGISTRY_PORT}/eureka
-    depends_on:
-      - service-registry
 
   department-service:
     build:
@@ -90,36 +125,6 @@ services:
       - ZIPKIN_BASE_URL=${ZIPKIN_BASE_URL}
       - EUREKA_SERVER=http://service-registry:${SERVICE_REGISTRY_PORT}/eureka
 
-  mysql_department:
-    image: mysql:8
-    ports:
-      - "3307:3306" # Expose on a different port for department DB
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${DEPARTMENT_DB}
-    volumes:
-      - mysql_department_data:/var/lib/mysql
-
-  mysql_employee:
-    image: mysql:8
-    ports:
-      - "3308:3306" # Expose on a different port for employee DB
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${EMPLOYEE_DB}
-    volumes:
-      - mysql_employee_data:/var/lib/mysql
-
-  rabbitmq:
-    image: rabbitmq:management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-
-  zipkin:
-    image: openzipkin/zipkin
-    ports:
-      - "9411:9411"
 
 volumes:
   mysql_department_data:

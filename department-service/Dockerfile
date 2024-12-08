@@ -8,7 +8,7 @@ VOLUME /tmp
 COPY ./target/department-service-*.jar app.jar
 
 # Expose the port on which the service runs
-EXPOSE 8081
+EXPOSE 8083
 
 # Run the application
 ENTRYPOINT ["java", "-jar", "/app.jar"]
