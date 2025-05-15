@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://localhost:8080/api/v1';
+const BASE_URL = 'http://api-gateway:9191/api/v1';
 
 const EMPLOYEE_BASE = `${BASE_URL}/employee-service`;
-const DEPARTMENT_BASE = `${BASE_URL}/department-controller`;
+const DEPARTMENT_BASE = `${BASE_URL}/department-service`;
 
 export const saveEmployee = (data: any) =>
   axios.post(`${EMPLOYEE_BASE}/`, data);

@@ -28,7 +28,10 @@ public class EmployeeServiceImpl implements EmployeeService {
                 employeeDTO.getFirstName(),
                 employeeDTO.getLastName(),
                 employeeDTO.getEmail(),
-                employeeDTO.getDepartment_code()
+                employeeDTO.getDepartmentCode(),
+                employeeDTO.getPosition(),
+                employeeDTO.getSalary(),
+                employeeDTO.getHireDate()
         );
 
         Employee savedEmployee = employeeRepository.save(employee);
@@ -38,7 +41,10 @@ public class EmployeeServiceImpl implements EmployeeService {
                 savedEmployee.getFirstName(),
                 savedEmployee.getLastName(),
                 savedEmployee.getEmail(),
-                savedEmployee.getDepartment_code()
+                savedEmployee.getDepartmentCode(),
+                savedEmployee.getPosition(),
+                savedEmployee.getSalary(),
+                savedEmployee.getHireDate()
         );
 
         return employeeDTO1;
@@ -52,7 +58,10 @@ public class EmployeeServiceImpl implements EmployeeService {
                 employeeById.getFirstName(),
                 employeeById.getLastName(),
                 employeeById.getEmail(),
-                employeeById.getDepartment_code()
+                employeeById.getDepartmentCode(),
+                employeeById.getPosition(),
+                employeeById.getSalary(),
+                employeeById.getHireDate()
         );
 
         //Rest template is to be implemented
@@ -63,7 +72,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 //                .bodyToMono(DepartmentDTO.class)
 //                .block();
 
-        DepartmentDTO departmentDTO = apiClient.getDepartmentById(employeeById.getDepartment_code());
+        DepartmentDTO departmentDTO = apiClient.getDepartmentById(employeeById.getDepartmentCode());
 
         ResponseEmpDepDto responseEmpDepDto = new ResponseEmpDepDto();
         responseEmpDepDto.setEmployeeDTO(employeeDTO);

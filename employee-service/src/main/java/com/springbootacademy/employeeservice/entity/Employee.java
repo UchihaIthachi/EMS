@@ -6,22 +6,27 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import javax.persistence.*;
+import java.time.LocalDate;
 
 @Entity
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "Employee")
+@Table(name = "employees")
 public class Employee {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    long id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    String firstName;
+    private String firstName;
+    private String lastName;
 
-    String lastName;
-    @Column(nullable = false,unique = true)
-    String email;
-    String department_code;
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    private String departmentCode;
+    private String position;
+    private Double salary;
+    private LocalDate hireDate;
 }

@@ -1,4 +1,47 @@
+version: '3.8'
+
 services:
+  rabbitmq:
+    image: rabbitmq:management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - ems-network
+
+  zipkin:
+    image: openzipkin/zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - ems-network
+
+  mysql_department:
+    image: mysql:8
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DEPARTMENT_DB}
+    volumes:
+      - mysql_department_data:/var/lib/mysql
+      - ./init/department-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ems-network
+
+  mysql_employee:
+    image: mysql:8
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${EMPLOYEE_DB}
+    volumes:
+      - mysql_employee_data:/var/lib/mysql
+      - ./init/employee-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ems-network
+
   service-registry:
     build:
       context: ../service-registry
@@ -6,10 +49,30 @@ services:
     ports:
       - "${SERVICE_REGISTRY_PORT}:${SERVICE_REGISTRY_PORT}"
     environment:
-      - SPRING_APPLICATION_NAME=SERVICE-REGISTRY
-      - SERVER_PORT=${SERVICE_REGISTRY_PORT}
-      - REGISTER_WITH_EUREKA=false
-      - FETCH_REGISTRY=false
+      SPRING_APPLICATION_NAME: service-registry
+      SERVER_PORT: ${SERVICE_REGISTRY_PORT}
+      REGISTER_WITH_EUREKA: "false"
+      FETCH_REGISTRY: "false"
+    networks:
+      - ems-network
+
+  config-server:
+    build:
+      context: ../config-server
+      dockerfile: Dockerfile
+    ports:
+      - "8888:8888"
+    environment:
+      SPRING_APPLICATION_NAME: config-server
+      SERVER_PORT: 8888
+      CONFIG_REPO_URI: https://github.com/UchihaIthachi/configuration-server-repo
+      CONFIG_CLONE_ON_START: "true"
+      CONFIG_DEFAULT_LABEL: main
+      GIT_USERNAME: UchihaIthachi
+      GIT_PAT: ${GIT_PAT}
+      EUREKA_SERVER: http://service-registry:${SERVICE_REGISTRY_PORT}/eureka
+    depends_on:
+      - service-registry
     networks:
       - ems-network
 
@@ -21,32 +84,16 @@ services:
     ports:
       - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}"
     environment:
-      - SPRING_APPLICATION_NAME=api-gateway
-      - SERVER_PORT=${API_GATEWAY_PORT}
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:${SERVICE_REGISTRY_PORT}/eureka/
-      - ZIPKIN_BASE_URL=${ZIPKIN_BASE_URL}
-      - SLEUTH_SAMPLER_PROBABILITY=${SLEUTH_SAMPLER_PROBABILITY}
+      SPRING_APPLICATION_NAME: api-gateway
+      SERVER_PORT: ${API_GATEWAY_PORT}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:${SERVICE_REGISTRY_PORT}/eureka/
+      ZIPKIN_BASE_URL: ${ZIPKIN_BASE_URL}
+      SLEUTH_SAMPLER_PROBABILITY: ${SLEUTH_SAMPLER_PROBABILITY}
     depends_on:
       - service-registry
       - config-server
     networks:
       - ems-network
-
-  config-server:
-    build:
-      context: ../config-server
-      dockerfile: Dockerfile
-    ports:
-      - "8888:8888"
-    environment:
-      - SPRING_APPLICATION_NAME=CONFIG-SERVER
-      - SERVER_PORT=8888
-      - CONFIG_REPO_URI=https://github.com/UchihaIthachi/EMS/tree/main/config-server
-      - CONFIG_CLONE_ON_START=true
-      - CONFIG_DEFAULT_LABEL=main
-      - EUREKA_SERVER=http://service-registry:${SERVICE_REGISTRY_PORT}/eureka
-    depends_on:
-      - service-registry
 
   department-service:
     build:
@@ -55,18 +102,26 @@ services:
     ports:
       - "${DEPARTMENT_SERVICE_PORT}:${DEPARTMENT_SERVICE_PORT}"
     environment:
-      - SPRING_APPLICATION_NAME=DEPARTMENT-SERVICE
-      - CONFIG_SERVER_URI=http://config-server:8888
-      - DATABASE_URL=jdbc:mysql://mysql_department:3306/${DEPARTMENT_DB}?createDatabaseIfNotExist=true
-      - DATABASE_USERNAME=root
-      - DATABASE_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - HIBERNATE_DIALECT=org.hibernate.dialect.MySQL8Dialect
-      - HIBERNATE_DDL_AUTO=update
-      - RABBITMQ_HOST=${RABBITMQ_HOST}
-      - RABBITMQ_PORT=${RABBITMQ_PORT}
-      - RABBITMQ_USERNAME=${RABBITMQ_USERNAME}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
-      - ZIPKIN_BASE_URL=${ZIPKIN_BASE_URL}
+      SPRING_APPLICATION_NAME: department-service
+      CONFIG_SERVER_URI: http://config-server:8888
+      DATABASE_URL: jdbc:mysql://mysql_department:3306/${DEPARTMENT_DB}?createDatabaseIfNotExist=true
+      DATABASE_USERNAME: root
+      DATABASE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      HIBERNATE_DIALECT: org.hibernate.dialect.MySQL8Dialect
+      HIBERNATE_DDL_AUTO: update
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      ZIPKIN_BASE_URL: ${ZIPKIN_BASE_URL}
+      EUREKA_SERVER: http://service-registry:${SERVICE_REGISTRY_PORT}/eureka
+    depends_on:
+      - mysql_department
+      - rabbitmq
+      - config-server
+      - service-registry
+    networks:
+      - ems-network
 
   employee-service:
     build:
@@ -75,49 +130,46 @@ services:
     ports:
       - "${EMPLOYEE_SERVICE_PORT}:${EMPLOYEE_SERVICE_PORT}"
     environment:
-      - SPRING_APPLICATION_NAME=EMPLOYEE-SERVICE
-      - CONFIG_SERVER_URI=http://config-server:8888
-      - DATABASE_URL=jdbc:mysql://mysql_employee:3306/${EMPLOYEE_DB}?createDatabaseIfNotExist=true
-      - DATABASE_USERNAME=root
-      - DATABASE_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - HIBERNATE_DIALECT=org.hibernate.dialect.MySQL8Dialect
-      - HIBERNATE_DDL_AUTO=update
-      - RABBITMQ_HOST=${RABBITMQ_HOST}
-      - RABBITMQ_PORT=${RABBITMQ_PORT}
-      - RABBITMQ_USERNAME=${RABBITMQ_USERNAME}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
-      - ZIPKIN_BASE_URL=${ZIPKIN_BASE_URL}
-
-  mysql_department:
-    image: mysql:8
+      SPRING_APPLICATION_NAME: employee-service
+      CONFIG_SERVER_URI: http://config-server:8888
+      DATABASE_URL: jdbc:mysql://mysql_employee:3306/${EMPLOYEE_DB}?createDatabaseIfNotExist=true
+      DATABASE_USERNAME: root
+      DATABASE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      HIBERNATE_DIALECT: org.hibernate.dialect.MySQL8Dialect
+      HIBERNATE_DDL_AUTO: update
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      ZIPKIN_BASE_URL: ${ZIPKIN_BASE_URL}
+      EUREKA_SERVER: http://service-registry:${SERVICE_REGISTRY_PORT}/eureka
+    depends_on:
+      - mysql_employee
+      - rabbitmq
+      - config-server
+      - service-registry
+    networks:
+      - ems-network
+  adminer:
+    image: adminer
     ports:
-      - "3307:3306" # Expose on a different port for department DB
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${DEPARTMENT_DB}
-    volumes:
-      - mysql_department_data:/var/lib/mysql
+      - "8085:8080"
+    networks:
+      - ems-network
+    restart: unless-stopped
 
-  mysql_employee:
-    image: mysql:8
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
     ports:
-      - "3308:3306" # Expose on a different port for employee DB
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${EMPLOYEE_DB}
-    volumes:
-      - mysql_employee_data:/var/lib/mysql
+      - "3001:80"
+    networks:
+      - ems-network
+    depends_on:
+      - api-gateway
 
-  rabbitmq:
-    image: rabbitmq:management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
 
-  zipkin:
-    image: openzipkin/zipkin
-    ports:
-      - "9411:9411"
 
 volumes:
   mysql_department_data:
@@ -125,3 +177,4 @@ volumes:
 
 networks:
   ems-network:
+    driver: bridge
