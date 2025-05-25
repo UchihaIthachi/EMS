@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS employee_db_2;
-USE employee_db_2;
+CREATE DATABASE IF NOT EXISTS employee_db_1;
+USE employee_db_1;
 
 CREATE TABLE IF NOT EXISTS employees (
     id INT AUTO_INCREMENT PRIMARY KEY,

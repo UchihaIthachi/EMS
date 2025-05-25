@@ -70,6 +70,7 @@ done
 
 # Build block
 if $BUILD; then
+  # docker-compose down -v
   echo "Building: ${TARGET_SERVICES[*]}"
   for svc in "${TARGET_SERVICES[@]}"; do
     svc_dir="../$svc"

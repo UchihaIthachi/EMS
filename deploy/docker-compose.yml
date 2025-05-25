@@ -28,9 +28,12 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DEPARTMENT_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - mysql_department_data:/var/lib/mysql
       - ./init/department-init.sql:/docker-entrypoint-initdb.d/init.sql
+    # command: ["mysqld", "--bind-address=0.0.0.0"]
     networks:
       - ems-network
     healthcheck:
@@ -40,7 +43,7 @@ services:
           "mysqladmin",
           "ping",
           "-h",
-          "localhost",
+          "127.0.0.1",
           "-u",
           "root",
           "--password=${MYSQL_ROOT_PASSWORD}",
@@ -56,9 +59,12 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${EMPLOYEE_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - mysql_employee_data:/var/lib/mysql
       - ./init/employee-init.sql:/docker-entrypoint-initdb.d/init.sql
+    # command: ["mysqld", "--bind-address=0.0.0.0"]
     networks:
       - ems-network
     healthcheck:
@@ -68,7 +74,7 @@ services:
           "mysqladmin",
           "ping",
           "-h",
-          "localhost",
+          "127.0.0.1",
           "-u",
           "root",
           "--password=${MYSQL_ROOT_PASSWORD}",

@@ -11,6 +11,8 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 @Service
 @AllArgsConstructor
@@ -52,7 +54,13 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     public ResponseEmpDepDto getEmployee(long id) {
-        Employee employeeById = employeeRepository.getEmployeeById(id);
+        Employee employeeById = employeeRepository.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found"));
+
+        if (employeeById == null) {
+            throw new RuntimeException("Employee not found with ID: " + id);
+        }
+    
         EmployeeDTO employeeDTO = new EmployeeDTO(
                 employeeById.getId(),
                 employeeById.getFirstName(),
@@ -63,21 +71,14 @@ public class EmployeeServiceImpl implements EmployeeService {
                 employeeById.getSalary(),
                 employeeById.getHireDate()
         );
-
-        //Rest template is to be implemented
-
-//        DepartmentDTO departmentDTO1 = webClient.get()
-//                .uri("http://localhost:8081/api/v1/department_service/"+employeeById.getDepartment_code())
-//                .retrieve()
-//                .bodyToMono(DepartmentDTO.class)
-//                .block();
-
+    
         DepartmentDTO departmentDTO = apiClient.getDepartmentById(employeeById.getDepartmentCode());
-
-        ResponseEmpDepDto responseEmpDepDto = new ResponseEmpDepDto();
-        responseEmpDepDto.setEmployeeDTO(employeeDTO);
-        responseEmpDepDto.setDepartmentDTO(departmentDTO);
-
-        return responseEmpDepDto;
+    
+        ResponseEmpDepDto response = new ResponseEmpDepDto();
+        response.setEmployeeDTO(employeeDTO);
+        response.setDepartmentDTO(departmentDTO);
+    
+        return response;
     }
+    
 }
