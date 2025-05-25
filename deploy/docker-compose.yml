@@ -170,11 +170,11 @@ services:
       mysql_department:
         condition: service_healthy
       config-server:
-        # condition: service_healthy
-        condition: service_started
+        condition: service_healthy
+        # condition: service_started
       service-registry:
-        # condition: service_healthy
-        condition: service_started
+        condition: service_healthy
+        # condition: service_started
       rabbitmq:
         condition: service_healthy
     networks:
@@ -204,11 +204,11 @@ services:
       mysql_employee:
         condition: service_healthy
       config-server:
-        # condition: service_healthy
-        condition: service_started
+        condition: service_healthy
+        # condition: service_started
       service-registry:
-        # condition: service_healthy
-        condition: service_started
+        condition: service_healthy
+        # condition: service_started
       rabbitmq:
         condition: service_healthy
     networks:

@@ -7,8 +7,8 @@ SERVICES=("service-registry" "api-gateway" "department-service" "employee-servic
 
 usage() {
   echo "Usage: $0 [--build] [--run] [service1 service2 ...]"
-  echo "  --build         Build only (default: build all if no service specified)"
-  echo "  --run           Run only (default: run all if no service specified)"
+  echo "  --build         Build only"
+  echo "  --run           Run only"
   echo "  [service ...]   Optional list of services to target"
   echo
   echo "Examples:"
@@ -43,15 +43,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# If no arguments: build and run all
+# If no flags or services specified: build and run all
 if [ "$BUILD" = false ] && [ "$RUN" = false ] && [ $# -eq 0 ]; then
   BUILD=true
   RUN=true
   TARGET_SERVICES=("${SERVICES[@]}")
-fi
-
-# Remaining args are service names (if any)
-if [ -z "${TARGET_SERVICES[*]}" ]; then
+else
   TARGET_SERVICES=("$@")
 fi
 
@@ -61,34 +58,31 @@ fi
 
 # Validate service names
 for svc in "${TARGET_SERVICES[@]}"; do
-  if [[ ! " ${SERVICES[*]} " =~ " ${svc} " ]]; then
-    echo "Unknown service: $svc"
-    echo "Known services: ${SERVICES[*]}"
+  if [[ ! " ${SERVICES[@]} " =~ " ${svc} " ]]; then
+    echo "❌ Unknown service: $svc"
+    echo "✅ Known services: ${SERVICES[*]}"
     exit 1
   fi
 done
 
 # Build block
 if $BUILD; then
-  # docker-compose down -v
-  echo "Building: ${TARGET_SERVICES[*]}"
+  echo "🔨 Building: ${TARGET_SERVICES[*]}"
   for svc in "${TARGET_SERVICES[@]}"; do
-    svc_dir="../$svc"
-    if [ -f "$svc_dir/pom.xml" ]; then
-      echo "Building Maven project for $svc..."
-      (cd "$svc_dir" && mvn clean package -DskipTests)
+    if [ -f "$svc/pom.xml" ]; then
+      echo "📦 Running Maven build for $svc..."
+      (cd "$svc" && mvn clean package -DskipTests)
     else
-      echo "Skipping Maven build for $svc (no pom.xml found)"
+      echo "ℹ️  Skipping Maven build for $svc (no pom.xml)"
     fi
 
-    echo "Building Docker image for $svc..."
+    echo "🐳 Building Docker image for $svc..."
     docker-compose -f "$COMPOSE_FILE" build "$svc"
   done
 fi
 
 # Run block
 if $RUN; then
-  echo "Starting: ${TARGET_SERVICES[*]}"
+  echo "🚀 Starting: ${TARGET_SERVICES[*]}"
   docker-compose -f "$COMPOSE_FILE" up -d "${TARGET_SERVICES[@]}"
 fi
-

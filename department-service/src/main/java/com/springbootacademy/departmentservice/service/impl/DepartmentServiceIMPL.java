@@ -5,8 +5,13 @@ import com.springbootacademy.departmentservice.entity.Department;
 import com.springbootacademy.departmentservice.repository.DepartmentRepository;
 import com.springbootacademy.departmentservice.service.DepartmentService;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Optional;
+
+@Slf4j
 @Service
 @AllArgsConstructor
 public class DepartmentServiceIMPL implements DepartmentService {
@@ -34,17 +39,28 @@ public class DepartmentServiceIMPL implements DepartmentService {
         return departmentDTO1;
     }
 
+
     @Override
     public DepartmentDTO getDepartmentByCode(String code) {
-        Department department = departmentRepository.findDepartmentByDepartmentCode(code);
+        log.info("Start: getDepartmentByCode with code = {}", code);
 
-        DepartmentDTO departmentDTO = new DepartmentDTO(
-                department.getId(),
-                department.getDepartmentName(),
-                department.getDepartmentDescription(),
-                department.getDepartmentCode()
-        );
+        Optional<Department> optionalDepartment = departmentRepository.findByDepartmentCode(code);
 
-        return departmentDTO;
+        if (optionalDepartment.isPresent()) {
+            Department department = optionalDepartment.get();
+            log.info("Department found: {}", department);
+
+            return new DepartmentDTO(
+                    department.getId(),
+                    department.getDepartmentName(),
+                    department.getDepartmentDescription(),
+                    department.getDepartmentCode()
+            );
+        } else {
+            log.warn("No department found in DB for code: {}", code);
+            throw new RuntimeException("Department not found for code: " + code);
+        }
     }
+
+
 }

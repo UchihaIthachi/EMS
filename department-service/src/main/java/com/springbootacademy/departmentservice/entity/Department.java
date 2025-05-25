@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "department")
+@Table(name = "departments")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -15,8 +15,12 @@ public class Department {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private int id;
+    @Column(name = "name") // map to actual column
     private String departmentName;
+
+    @Column(name = "description")
     private String departmentDescription;
+
     @Column(name = "department_code")
     private String departmentCode;
 }
