@@ -1,0 +1,2 @@
+2025/05/25 17:41:21 [emerg] 1#1: "access_log" directive is not allowed here in /etc/nginx/nginx.conf:34
+2025/05/25 17:48:43 [emerg] 1#1: "access_log" directive is not allowed here in /etc/nginx/nginx.conf:34
