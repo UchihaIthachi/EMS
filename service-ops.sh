@@ -3,7 +3,27 @@
 set -e
 
 COMPOSE_FILE="deploy/docker-compose.yml"
-SERVICES=("service-registry" "api-gateway" "department-service" "employee-service" "frontend" "config-server" "mysql_employee"  "mysql_department" "rabbitmq" "zipkin")
+
+SERVICES=(
+  "service-registry"
+  "api-gateway"
+  "department-service"
+  "employee-service"
+  "frontend"
+  "web-proxy"           # ➕ frontend + monitoring reverse proxy
+  "config-server"
+  "mysql_employee"
+  "mysql_department"
+  "rabbitmq"
+  "zipkin"
+  "elasticsearch"       # ➕ for log storage
+  "logstash"            # ➕ for log processing
+  "kibana"              # ➕ for log visualization
+  "prometheus"          # ➕ for metrics collection
+  "grafana"             # ➕ for metrics visualization
+  "nginx-exporter"      # ➕ exposes NGINX /nginx_status to Prometheus
+)
+
 
 usage() {
   echo "Usage: $0 [--build] [--run] [service1 service2 ...]"

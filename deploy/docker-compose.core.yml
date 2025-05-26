@@ -1,86 +1,5 @@
 version: "3.8"
-
 services:
-  rabbitmq:
-    image: rabbitmq:management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    networks:
-      - ems-network
-    healthcheck:
-      test: ["CMD", "rabbitmqctl", "status"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-
-  zipkin:
-    image: openzipkin/zipkin
-    ports:
-      - "9411:9411"
-    networks:
-      - ems-network
-
-  mysql_department:
-    image: mysql:8
-    ports:
-      - "3307:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DEPARTMENT_DB}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    volumes:
-      - mysql_department_data:/var/lib/mysql
-      - ./init/department-init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - ems-network
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "mysqladmin",
-          "ping",
-          "-h",
-          "127.0.0.1",
-          "-u",
-          "root",
-          "--password=${MYSQL_ROOT_PASSWORD}",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  mysql_employee:
-    image: mysql:8
-    ports:
-      - "3308:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${EMPLOYEE_DB}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    volumes:
-      - mysql_employee_data:/var/lib/mysql
-      - ./init/employee-init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - ems-network
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "mysqladmin",
-          "ping",
-          "-h",
-          "127.0.0.1",
-          "-u",
-          "root",
-          "--password=${MYSQL_ROOT_PASSWORD}",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   service-registry:
     build:
       context: ../service-registry
@@ -95,7 +14,13 @@ services:
     networks:
       - ems-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${SERVICE_REGISTRY_PORT}/actuator/health",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -120,7 +45,13 @@ services:
     networks:
       - ems-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${SERVICE_REGISTRY_PORT}/actuator/health",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -241,6 +172,66 @@ services:
       timeout: 5s
       retries: 5
 
+  mysql_department:
+    image: mysql:8
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DEPARTMENT_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_department_data:/var/lib/mysql
+      - ./init/department-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ems-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "127.0.0.1",
+          "-u",
+          "root",
+          "--password=${MYSQL_ROOT_PASSWORD}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mysql_employee:
+    image: mysql:8
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${EMPLOYEE_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_employee_data:/var/lib/mysql
+      - ./init/employee-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ems-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "127.0.0.1",
+          "-u",
+          "root",
+          "--password=${MYSQL_ROOT_PASSWORD}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   adminer:
     image: adminer
     ports:
@@ -249,90 +240,18 @@ services:
       - ems-network
     restart: unless-stopped
 
-  frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
+  rabbitmq:
+    image: rabbitmq:management
     ports:
-      - "3001:80"
+      - "5672:5672"
+      - "15672:15672"
     networks:
       - ems-network
-    depends_on:
-      - api-gateway
-    volumes:
-      - ./nginx-logs:/var/log/nginx
-
-  web-proxy:
-    image: nginx:alpine
-    container_name: web-proxy
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-    ports:
-      - "80:80"
-    depends_on:
-      - frontend
-      - api-gateway
-    networks:
-      - ems-network
-
-  nginx-exporter:
-    image: nginx/nginx-prometheus-exporter:latest
-    ports:
-      - "9113:9113"
-    command:
-      - "--nginx.scrape-uri=http://web-proxy/nginx_status"
-    networks:
-      - ems-network
-
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
-    container_name: elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    ports:
-      - "9200:9200"
-    networks:
-      - ems-network
-
-  logstash:
-    image: docker.elastic.co/logstash/logstash:7.17.9
-    ports:
-      - "5000:5000"
-    volumes:
-      - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-    depends_on:
-      - elasticsearch
-    networks:
-      - ems-network
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:7.17.9
-    ports:
-      - "5601:5601"
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    depends_on:
-      - elasticsearch
-    networks:
-      - ems-network
-
-  prometheus:
-    image: prom/prometheus
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
-    networks:
-      - ems-network
-
-  grafana:
-    image: grafana/grafana
-    ports:
-      - "3000:3000"
-    networks:
-      - ems-network
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
 volumes:
   mysql_department_data:

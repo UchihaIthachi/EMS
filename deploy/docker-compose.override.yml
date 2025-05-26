@@ -1,0 +1,23 @@
+version: "3.8"
+services:
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:80"
+    networks:
+      - ems-network
+    depends_on:
+      - api-gateway
+    volumes:
+      - ./nginx-logs:/var/log/nginx
+
+  web-proxy:
+    image: nginx:alpine
+    container_name: web-proxy
+    ports: ["80:80"]
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on: [frontend, api-gateway]
+    networks: [ems-network]
