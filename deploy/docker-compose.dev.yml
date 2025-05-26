@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  service-registry:
+    volumes:
+      - ../service-registry/target:/app/local-jar # Mount target dir
+    command: sh -c 'echo Waiting for config-server to be up if needed... && sleep 5 && exec java -jar $(find /app/local-jar -name "*.jar" -print -quit)'
+    # Add depends_on if it needs to wait for config-server or other critical services in this dev mode
+    # healthcheck can be kept or removed for this dev mode if startup is very different
+
+  config-server:
+    volumes:
+      - ../config-server/target:/app/local-jar
+    command: sh -c 'echo Waiting for service-registry to be up if needed... && sleep 5 && exec java -jar $(find /app/local-jar -name "*.jar" -print -quit)'
+    # healthcheck can be kept or removed
+
+  api-gateway:
+    volumes:
+      - ../api-gateway/target:/app/local-jar
+    command: sh -c 'echo Waiting for config-server & service-registry... && sleep 10 && exec java -jar $(find /app/local-jar -name "*.jar" -print -quit)'
+    # depends_on from main docker-compose.yml should still apply (config-server, service-registry)
+    # healthcheck can be kept or removed
+
+  department-service:
+    volumes:
+      - ../department-service/target:/app/local-jar
+    command: sh -c 'echo Waiting for dependencies... && sleep 15 && exec java -jar $(find /app/local-jar -name "*.jar" -print -quit)'
+    # depends_on from main docker-compose.yml should still apply (databases, rabbitmq, config, registry)
+    # healthcheck can be kept or removed
+
+  employee-service:
+    volumes:
+      - ../employee-service/target:/app/local-jar
+    command: sh -c 'echo Waiting for dependencies... && sleep 15 && exec java -jar $(find /app/local-jar -name "*.jar" -print -quit)'
+    # depends_on from main docker-compose.yml should still apply
+    # healthcheck can be kept or removed
+
+# Note:
+# 1. The paths like '../service-registry/target' assume this docker-compose.dev.yml
+#    is in the 'deploy/' directory.
+# 2. The `command` uses `find` to locate the JAR in the mounted target directory.
+#    This makes it resilient to version numbers in JAR names.
+# 3. `sleep` commands are rudimentary ways to handle startup order for this dev mode.
+#    The `depends_on` conditions from the main `docker-compose.yml` (with `service_healthy`)
+#    are more robust but apply to the original container command. Overriding command here
+#    means we might need to be mindful of startup.
+# 4. Healthchecks from the original docker-compose.yml might fail if the overridden command
+#    changes behavior significantly or if startup is too slow. They can be removed or
+#    adjusted in this dev override if they cause issues for local dev. For now, they are kept.
+# 5. This override file does not need to redefine ports, networks, environment variables,
+#    or depends_on unless you specifically want to change them for this dev mode.
+#    Docker Compose merges these definitions.

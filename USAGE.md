@@ -1,10 +1,59 @@
+## 0. Local CI/CD Environment Setup (Optional)
+
+For developers wanting to test the CI/CD pipeline locally, a Docker Compose file is provided to spin up Jenkins, Nexus, and a local Docker Registry.
+
+**File:** `docker-compose-cicd.yml` (in the project root)
+
+**Services:**
+- **Jenkins:** Accessible at http://localhost:8080. Docker socket is mounted, allowing Jenkins to build Docker images. Persistent data in `jenkins_home` volume.
+- **Nexus:** Accessible at http://localhost:8081. Persistent data in `nexus_data` volume.
+- **Local Docker Registry:** Runs on port 5000. Accessible as `localhost:5000`. Persistent data in `local_registry_data` volume.
+
+**To run:**
+```bash
+docker-compose -f docker-compose-cicd.yml up -d
+```
+
+**Initial Setup:**
+- **Jenkins:**
+    - Unlock Jenkins using the initial admin password: `docker exec local-jenkins cat /var/jenkins_home/secrets/initialAdminPassword`
+    - Install suggested plugins or choose specific ones (Pipeline, Git, Docker Pipeline, etc.).
+    - Configure agent (if needed), JDK, Maven.
+    - Configure credentials for Nexus and your Docker registry (e.g., Docker Hub or `localhost:5000` if using the local one).
+- **Nexus:**
+    - Sign in (default admin/admin123, then change password).
+    - Configure blob stores and repositories (e.g., a `maven-releases` hosted repository).
+- **Local Docker Registry:**
+    - To use `localhost:5000` with Docker, you might need to configure your Docker daemon to trust this insecure registry. See Docker documentation for "insecure-registries".
+    - Minikube also needs to be able to access this registry if you intend to push images here for K8s deployment. (e.g., `minikube ssh -- 'echo "{\"insecure-registries\" : [\"$(minikube ip):5000\"]}" | sudo tee /etc/docker/daemon.json && sudo systemctl restart docker'`)
+
+**Stopping CI/CD services:**
+```bash
+docker-compose -f docker-compose-cicd.yml down
+```
+---
 # Usage Guide
 
 This document provides instructions for deploying and running the Employee Management System (EMS) application locally using Docker Compose and on a Minikube Kubernetes cluster.
 
+---
+## Further Documentation
+
+For more detailed information on specific aspects of this project, please refer to the following documents:
+
+*   [`architecture-components.md`](./architecture-components.md): Detailed explanation of `config-server`, `api-gateway`, and `service-registry`.
+*   [`architecture-diagrams.md`](./architecture-diagrams.md): Visual architecture diagrams for different deployment environments.
+*   [`ci-cd.md`](./ci-cd.md): Overview of the Jenkins CI/CD pipeline, Nexus, and Docker Registry integration.
+*   [`service-discovery.md`](./service-discovery.md): Explanation of the switchable service discovery mechanism (Eureka for local, Kubernetes DNS for K8s).
+*   [`circuit-breaker-pattern.md`](./circuit-breaker-pattern.md): Information on the Circuit Breaker pattern and its potential application.
+
+---
+
 ## 1. Local Deployment (Docker Compose)
 
 This project uses Docker Compose for local development and testing. The services are defined in `deploy/docker-compose.yml`.
+
+**Note on Service Discovery:** When running services with this default Docker Compose setup (`docker-compose up -d`), the Java microservices are configured to use **Netflix Eureka** for service discovery (via the `local-eureka` Spring profile activated by `SPRING_PROFILES_ACTIVE=local-eureka` in `deploy/docker-compose.yml`). The `service-registry` container acts as the Eureka server.
 
 ### Prerequisites
 - Docker Desktop installed and running.
@@ -54,6 +103,69 @@ This project uses Docker Compose for local development and testing. The services
     To stop services including specific profiles:
     ```bash
     docker-compose --profile logging --profile monitoring down
+    ```
+
+### Fast Development Loop (Using Local JARs)
+
+For faster local development of Java microservices, you can build JARs locally and have Docker Compose run them directly, bypassing the Docker image build step for each change.
+
+**Prerequisites:**
+- Java Development Kit (JDK) and Maven installed locally for building JARs.
+
+**How it Works:**
+- The `deploy/docker-compose.dev.yml` override file is provided. When used with `deploy/docker-compose.yml`, it:
+    - Mounts your local `service-name/target/` directory (where the JAR is built) into the respective service container at `/app/local-jar/`.
+    - Changes the container's command to run the JAR found in this mounted directory.
+- Service discovery between microservices in this mode will also use **Netflix Eureka**, as the base `deploy/docker-compose.yml` (which sets the `local-eureka` profile) is still active. The primary purpose of this mode is to run locally compiled JARs quickly.
+
+**Option 1: Manual Steps**
+1.  **Build a specific Java microservice:**
+    Navigate to the service's directory (e.g., `cd department-service`) and run:
+    ```bash
+    ./mvnw clean package -DskipTests 
+    ```
+    (Using `-DskipTests` speeds up the build for local dev iterations).
+2.  **Run services with the development override:**
+    In the `deploy/` directory, run:
+    ```bash
+    docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d [service-name...]
+    ```
+    Replace `[service-name...]` with the services you want to start. If you omit service names, all services defined in these files will start.
+    You can also use profiles with this setup:
+    ```bash
+    docker-compose -f docker-compose.yml -f docker-compose.dev.yml --profile logging up -d
+    ```
+
+**Option 2: Using `local-dev.sh` Script**
+A helper script `local-dev.sh` (in the project root) automates this process. Ensure it's executable (`chmod +x local-dev.sh`).
+
+*   **Build services:**
+    ```bash
+    ./local-dev.sh build                    # Build all Java services
+    ./local-dev.sh build <service-name>     # Build a specific Java service (e.g., api-gateway)
+    ```
+*   **Start services (using local JARs):**
+    ```bash
+    ./local-dev.sh up -d                    # Start all services in detached mode
+    ./local-dev.sh up <service-name>        # Start specific service(s)
+    ./local-dev.sh up --profile logging -d  # Start with profiles
+    ```
+*   **Stop services:**
+    ```bash
+    ./local-dev.sh down
+    ```
+*   **View logs:**
+    ```bash
+    ./local-dev.sh logs <service-name>      # Follow logs for a service
+    ./local-dev.sh logs                     # Follow logs for all services
+    ```
+*   **View running services:**
+    ```bash
+    ./local-dev.sh ps
+    ```
+*   **Help:**
+    ```bash
+    ./local-dev.sh help
     ```
 
 ## 2. Kubernetes Deployment (Minikube)
@@ -141,6 +253,40 @@ This section describes how to deploy the application to a local Minikube Kuberne
     kubectl apply -R -f deploy/k8s/
     ```
     The `-R` or `--recursive` flag applies files in subdirectories. However, applying by type gives more control over the initial creation order.
+
+#### Using the `k8s-deploy.sh` Script (Recommended for Automation)
+
+As an alternative to applying manifests manually by type, you can use the `k8s-deploy.sh` script located in the project root. This script helps apply or delete resources in the correct order. Ensure it's executable (`chmod +x k8s-deploy.sh`).
+
+*   **Apply all resources:**
+    ```bash
+    ./k8s-deploy.sh apply
+    ```
+*   **Apply specific categories (e.g., configmaps then secrets then deployments):**
+    ```bash
+    ./k8s-deploy.sh apply configmaps secrets deployments
+    ```
+*   **Delete all resources (namespace `ems-app` itself is not deleted by default):**
+    ```bash
+    ./k8s-deploy.sh delete
+    ```
+*   **Delete specific categories:**
+    ```bash
+    ./k8s-deploy.sh delete deployments ingress
+    ```
+*   **Delete the namespace `ems-app` (use with caution):**
+    ```bash
+    ./k8s-deploy.sh delete namespace 
+    ```
+*   **Check status of deployed resources:**
+    ```bash
+    ./k8s-deploy.sh status
+    ```
+*   **Help:**
+    ```bash
+    ./k8s-deploy.sh help
+    ```
+Using this script can simplify the deployment process and reduce the chance of errors from applying manifests in an incorrect order.
 
 5.  **Verify Deployments:**
     Check the status of pods in the `ems-app` namespace:

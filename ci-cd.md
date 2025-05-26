@@ -1,0 +1,73 @@
+# CI/CD Pipeline
+
+This document describes the Continuous Integration/Continuous Deployment (CI/CD) pipeline setup for the Employee Management System (EMS) application. The pipeline is defined in the `Jenkinsfile` located in the project root.
+
+## Overview
+
+The CI/CD pipeline automates the following key processes:
+1.  **Source Code Checkout:** Fetches the latest code from the Git repository.
+2.  **Build & Test:** Compiles the Java microservices and frontend application, and runs unit tests (tests are currently skipped in `local-dev.sh` builds for speed, but the main pipeline should ideally run them).
+3.  **Artifact Publishing (Nexus):** Publishes build artifacts (e.g., JAR files for Java microservices) to a Nexus repository manager.
+4.  **Docker Image Building:** Builds Docker images for each microservice and the frontend using their respective `Dockerfile`s.
+5.  **Docker Image Pushing:** Pushes the built Docker images to a configured Docker registry (e.g., Docker Hub or a private registry).
+6.  **Deployment (Optional):** The `Jenkinsfile` includes a commented-out stage for deploying the application to Kubernetes using `kubectl apply`.
+
+## Jenkinsfile Structure
+
+The `Jenkinsfile` uses a declarative pipeline syntax.
+
+**Key Stages:**
+
+*   **`agent any`**: Specifies that the pipeline can run on any available Jenkins agent. For specific requirements, this can be changed to a label for agents equipped with necessary tools (JDK, Maven, Node.js, Docker).
+*   **`environment` block**:
+    *   Defines placeholder environment variables for:
+        *   `NEXUS_URL`: URL of the Nexus repository.
+        *   `NEXUS_CREDENTIALS_ID`: Jenkins credential ID for authenticating with Nexus.
+        *   `DOCKER_REGISTRY_URL`: URL of the Docker registry (e.g., Docker Hub username or private registry address).
+        *   `DOCKER_CREDENTIALS_ID`: Jenkins credential ID for authenticating with the Docker registry.
+    *   These variables should be configured within the Jenkins environment or job configuration.
+*   **`Checkout` stage**: Clones the source code from the repository.
+*   **`Build, Publish & Push All Services` stage**: This is a parallel stage that processes all microservices and the frontend simultaneously to improve efficiency.
+    *   **For each Java Microservice** (e.g., `department-service`, `employee-service`, etc.):
+        *   `Build & Test`: Executes `./mvnw clean package` within the service's directory to compile and package the application.
+        *   `Publish to Nexus`: (Currently simulated with an `echo` statement). In a full setup, this stage would use Maven to deploy the JAR to Nexus. This requires the `pom.xml` of each service to have a `<distributionManagement>` section and Jenkins to be configured with a `settings.xml` for Nexus authentication (using `NEXUS_CREDENTIALS_ID`).
+        *   `Build Docker Image`: Builds a Docker image using the service's `Dockerfile`. The image is tagged with `${env.DOCKER_REGISTRY_URL}/<service-name>:${env.BUILD_NUMBER}`.
+        *   `Push Docker Image`: Pushes the tagged Docker image to the configured registry using `docker.withRegistry` for secure credential handling.
+    *   **For the `frontend` service:**
+        *   `Build`: Executes `npm install` and `npm run build` to prepare the frontend assets.
+        *   `Build Docker Image`: Builds the frontend Docker image.
+        *   `Push Docker Image`: Pushes the frontend Docker image.
+*   **`Deploy to Minikube` stage (Optional, Commented Out)**:
+    *   Provides a placeholder for deploying the application to Kubernetes using `kubectl apply -R -f deploy/k8s/`.
+    *   This stage would require `kubectl` to be configured on the Jenkins agent with access to the target Kubernetes cluster.
+    *   Image tags in Kubernetes manifests might need to be updated by this stage, or use a GitOps approach.
+
+## Nexus Integration (Artifact Management)
+
+*   **Purpose:** Nexus is used to store and manage build artifacts (primarily JAR files for Java microservices). This allows for versioning, sharing, and reliable retrieval of dependencies and built applications.
+*   **Jenkins Interaction:**
+    *   The `Jenkinsfile` has a placeholder stage for publishing to Nexus.
+    *   To fully enable Nexus publishing:
+        1.  Each Java microservice's `pom.xml` needs a `<distributionManagement>` section pointing to the Nexus repository URL.
+        2.  A `settings.xml` file needs to be configured in Jenkins (or provided to Maven builds) containing server credentials for Nexus, using the `NEXUS_CREDENTIALS_ID`.
+        3.  The `sh './mvnw deploy ...'` command would then be used.
+*   **Local Nexus Instance:** The `docker-compose-cicd.yml` file allows running a local Nexus instance for testing this integration. See `USAGE.md` for setup.
+
+## Docker Registry Integration (Image Management)
+
+*   **Purpose:** A Docker registry (like Docker Hub, a cloud provider's registry, or the local registry from `docker-compose-cicd.yml`) is used to store and distribute the Docker images built by the pipeline.
+*   **Jenkins Interaction:**
+    *   The `Jenkinsfile` uses `docker build` to create images and `docker push` (via `docker.withRegistry`) to upload them.
+    *   The `DOCKER_REGISTRY_URL` environment variable in Jenkins should be set to the target registry (e.g., your Docker Hub username, or `localhost:5000` if using the local registry from `docker-compose-cicd.yml`).
+    *   The `DOCKER_CREDENTIALS_ID` environment variable in Jenkins should point to credentials configured in Jenkins for accessing this registry.
+*   **Kubernetes Consumption:** The Kubernetes deployment manifests (`deploy/k8s/**/*.yaml`) must reference these images. The `image:` fields in these manifests (e.g., `your-docker-registry/service-name:tag`) need to match the URL and tags used by the Jenkins pipeline.
+
+## Local CI/CD Environment (`docker-compose-cicd.yml`)
+
+To facilitate local testing of the full CI/CD flow, the `docker-compose-cicd.yml` file is provided in the project root. This allows you to run local instances of:
+-   Jenkins
+-   Nexus
+-   A Docker Registry
+
+Refer to `USAGE.md` for instructions on setting up and using this local CI/CD environment. This is highly recommended for developing and testing the `Jenkinsfile` and integration points.
+```

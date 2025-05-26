@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk11 # Using JDK11 version, often good for Java projects
+    container_name: local-jenkins
+    ports:
+      - "8080:8080" # Jenkins UI
+      - "50000:50000" # Jenkins agent port
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock # Mount Docker socket
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false # Optional: skip setup wizard for faster startup if pre-configured
+      # For Docker in Docker, or configuring agents, further setup might be needed.
+      # This setup assumes Jenkins can use the host's Docker daemon via the mounted socket.
+    networks:
+      - cicd-network
+
+  nexus:
+    image: sonatype/nexus3
+    container_name: local-nexus
+    ports:
+      - "8081:8081" # Nexus UI
+    volumes:
+      - nexus_data:/nexus-data
+    networks:
+      - cicd-network
+
+  local-registry:
+    image: registry:2
+    container_name: local-docker-registry
+    ports:
+      - "5000:5000" # Docker registry port
+    volumes:
+      - local_registry_data:/var/lib/registry
+    environment:
+      # REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /data # Default is /var/lib/registry
+      REGISTRY_HTTP_ADDR: 0.0.0.0:5000
+    networks:
+      - cicd-network
+
+volumes:
+  jenkins_home:
+  nexus_data:
+  local_registry_data:
+
+networks:
+  cicd-network:
+    driver: bridge

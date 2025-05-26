@@ -29,10 +29,8 @@ spec:
               value: "optional:configserver:http://config-server:8888/"
             - name: ZIPKIN_BASE_URL
               value: "http://zipkin:9411"
-            - name: EUREKA_CLIENT_ENABLED
-              value: "false"
-            - name: SPRING_CLOUD_GATEWAY_DISCOVERY_LOCATOR_ENABLED
-              value: "false"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "kubernetes"
           livenessProbe:
             httpGet:
               path: /actuator/health

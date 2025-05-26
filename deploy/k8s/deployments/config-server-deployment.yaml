@@ -40,8 +40,8 @@ spec:
                   key: GIT_PAT
             - name: SPRING_CLOUD_CONFIG_SERVER_GIT_IGNORE_LOCAL_SSH
               value: "true"
-            - name: EUREKA_CLIENT_ENABLED
-              value: "false"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "kubernetes"
           livenessProbe:
             httpGet:
               path: /actuator/health

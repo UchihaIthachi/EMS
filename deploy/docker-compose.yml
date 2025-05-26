@@ -92,6 +92,7 @@ services:
       SERVER_PORT: ${SERVICE_REGISTRY_PORT}
       REGISTER_WITH_EUREKA: "false"
       FETCH_REGISTRY: "false"
+      SPRING_PROFILES_ACTIVE: local-eureka
     networks:
       - ems-network
     healthcheck:
@@ -115,6 +116,7 @@ services:
       GIT_USERNAME: UchihaIthachi
       GIT_PAT: ${GIT_PAT}
       EUREKA_SERVER: http://service-registry:${SERVICE_REGISTRY_PORT}/eureka
+      SPRING_PROFILES_ACTIVE: local-eureka
     depends_on:
       - service-registry
     networks:
@@ -138,6 +140,7 @@ services:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:${SERVICE_REGISTRY_PORT}/eureka/
       ZIPKIN_BASE_URL: ${ZIPKIN_BASE_URL}
       SLEUTH_SAMPLER_PROBABILITY: ${SLEUTH_SAMPLER_PROBABILITY}
+      SPRING_PROFILES_ACTIVE: local-eureka
     depends_on:
       - service-registry
       - config-server
@@ -175,6 +178,7 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       ZIPKIN_BASE_URL: ${ZIPKIN_BASE_URL}
       EUREKA_SERVER: http://service-registry:${SERVICE_REGISTRY_PORT}/eureka
+      SPRING_PROFILES_ACTIVE: local-eureka
     depends_on:
       mysql_department:
         condition: service_healthy
@@ -218,6 +222,7 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       ZIPKIN_BASE_URL: ${ZIPKIN_BASE_URL}
       EUREKA_SERVER: http://service-registry:${SERVICE_REGISTRY_PORT}/eureka
+      SPRING_PROFILES_ACTIVE: local-eureka
     depends_on:
       mysql_employee:
         condition: service_healthy
