@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: department-service
+  namespace: ems-app
+  labels:
+    app: department-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: department-service
+  template:
+    metadata:
+      labels:
+        app: department-service
+    spec:
+      containers:
+        - name: department-service
+          image: your-docker-registry/department-service:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SPRING_APPLICATION_NAME
+              value: "department-service"
+            - name: SERVER_PORT
+              value: "8081"
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server:8888/"
+            - name: DATABASE_URL
+              value: "jdbc:mysql://mysql-department:3306/department_db" # Placeholder for DEPARTMENT_DB, assuming 'department_db'
+            - name: DATABASE_USERNAME
+              value: "root" # Placeholder
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: department-db-secret
+                  key: MYSQL_ROOT_PASSWORD # Placeholder
+            - name: RABBITMQ_HOST
+              value: "rabbitmq"
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: RABBITMQ_PASSWORD
+            - name: ZIPKIN_BASE_URL
+              value: "http://zipkin:9411"
+            - name: EUREKA_CLIENT_ENABLED
+              value: "false"
+            - name: HIBERNATE_DIALECT
+              value: "org.hibernate.dialect.MySQL8Dialect"
+            - name: HIBERNATE_DDL_AUTO
+              value: "update"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 70 # Longer delay for services with DB connections
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 40 # Longer delay
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"

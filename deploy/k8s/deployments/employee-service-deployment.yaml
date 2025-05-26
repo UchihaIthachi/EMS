@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: employee-service
+  namespace: ems-app
+  labels:
+    app: employee-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: employee-service
+  template:
+    metadata:
+      labels:
+        app: employee-service
+    spec:
+      containers:
+        - name: employee-service
+          image: your-docker-registry/employee-service:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: SPRING_APPLICATION_NAME
+              value: "employee-service"
+            - name: SERVER_PORT
+              value: "8082"
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server:8888/"
+            - name: DATABASE_URL
+              value: "jdbc:mysql://mysql-employee:3306/employee_db" # Placeholder for EMPLOYEE_DB, assuming 'employee_db'
+            - name: DATABASE_USERNAME
+              value: "root" # Placeholder
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: employee-db-secret
+                  key: MYSQL_ROOT_PASSWORD # Placeholder
+            - name: RABBITMQ_HOST
+              value: "rabbitmq"
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-secret
+                  key: RABBITMQ_PASSWORD
+            - name: ZIPKIN_BASE_URL
+              value: "http://zipkin:9411"
+            - name: EUREKA_CLIENT_ENABLED
+              value: "false"
+            - name: HIBERNATE_DIALECT
+              value: "org.hibernate.dialect.MySQL8Dialect"
+            - name: HIBERNATE_DDL_AUTO
+              value: "update"
+            - name: FEIGN_CLIENT_CONFIG_DEPARTMENT_SERVICE_URL
+              value: "http://department-service:8081/"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 70 # Longer delay for services with DB connections
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 40 # Longer delay
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"

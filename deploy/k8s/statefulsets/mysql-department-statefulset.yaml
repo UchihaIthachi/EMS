@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-department
+  namespace: ems-app
+  labels:
+    app: mysql-department
+spec:
+  serviceName: mysql-department # Headless service for StatefulSet
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-department
+  template:
+    metadata:
+      labels:
+        app: mysql-department
+    spec:
+      initContainers:
+        - name: copy-init-scripts
+          image: busybox
+          command: ['sh', '-c', 'cp /configmap-scripts/department-init.sql /target-initdbd/ && echo "Copied department-init.sql"']
+          volumeMounts:
+            - name: init-scripts-cm
+              mountPath: /configmap-scripts
+            - name: initdb-scripts-vol
+              mountPath: /target-initdbd
+      containers:
+        - name: mysql-department
+          image: mysql:8
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: department-db-secret
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql-department-config
+                  key: DB_NAME
+          livenessProbe:
+            exec:
+              command:
+                - "mysqladmin"
+                - "ping"
+                - "-h"
+                - "127.0.0.1"
+                - "-u"
+                - "root"
+                - "-p${MYSQL_ROOT_PASSWORD}"
+            initialDelaySeconds: 45
+            periodSeconds: 15
+          readinessProbe:
+            exec:
+              command:
+                - "mysqladmin"
+                - "ping"
+                - "-h"
+                - "127.0.0.1"
+                - "-u"
+                - "root"
+                - "-p${MYSQL_ROOT_PASSWORD}"
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+            - name: initdb-scripts-vol # Mount the same emptyDir volume
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+      volumes:
+        - name: init-scripts-cm # Volume for ConfigMap
+          configMap:
+            name: mysql-department-init-scripts
+        - name: initdb-scripts-vol # emptyDir volume shared by init and main container
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 5Gi

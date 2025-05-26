@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-employee-config
+  namespace: ems-app
+data:
+  DB_NAME: "employee_db_1"

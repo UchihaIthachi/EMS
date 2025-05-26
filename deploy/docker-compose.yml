@@ -283,6 +283,7 @@ services:
       - "--nginx.scrape-uri=http://web-proxy/nginx_status"
     networks:
       - ems-network
+    profiles: ["monitoring"]
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
@@ -295,6 +296,7 @@ services:
       - "9200:9200"
     networks:
       - ems-network
+    profiles: ["logging"]
 
   logstash:
     image: docker.elastic.co/logstash/logstash:7.17.9
@@ -306,6 +308,7 @@ services:
       - elasticsearch
     networks:
       - ems-network
+    profiles: ["logging"]
 
   kibana:
     image: docker.elastic.co/kibana/kibana:7.17.9
@@ -317,6 +320,7 @@ services:
       - elasticsearch
     networks:
       - ems-network
+    profiles: ["logging"]
 
   prometheus:
     image: prom/prometheus
@@ -326,6 +330,7 @@ services:
       - "9090:9090"
     networks:
       - ems-network
+    profiles: ["monitoring"]
 
   grafana:
     image: grafana/grafana
@@ -333,6 +338,7 @@ services:
       - "3000:3000"
     networks:
       - ems-network
+    profiles: ["monitoring"]
 
 volumes:
   mysql_department_data:

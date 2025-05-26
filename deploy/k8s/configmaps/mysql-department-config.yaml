@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-department-config
+  namespace: ems-app
+data:
+  DB_NAME: "department_db_1"

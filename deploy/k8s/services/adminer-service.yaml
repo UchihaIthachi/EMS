@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: adminer
+  namespace: ems-app
+  labels:
+    app: adminer
+spec:
+  selector:
+    app: adminer
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

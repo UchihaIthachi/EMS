@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-server
+  namespace: ems-app
+  labels:
+    app: config-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-server
+  template:
+    metadata:
+      labels:
+        app: config-server
+    spec:
+      containers:
+        - name: config-server
+          image: your-docker-registry/config-server:latest
+          ports:
+            - containerPort: 8888
+          env:
+            - name: SPRING_APPLICATION_NAME
+              value: "config-server"
+            - name: SERVER_PORT
+              value: "8888"
+            - name: CONFIG_REPO_URI
+              value: "https://github.com/UchihaIthachi/configuration-server-repo"
+            - name: CONFIG_CLONE_ON_START
+              value: "true"
+            - name: CONFIG_DEFAULT_LABEL
+              value: "main"
+            - name: GIT_USERNAME
+              value: "UchihaIthachi"
+            - name: GIT_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: config-server-secret
+                  key: GIT_PAT
+            - name: SPRING_CLOUD_CONFIG_SERVER_GIT_IGNORE_LOCAL_SSH
+              value: "true"
+            - name: EUREKA_CLIENT_ENABLED
+              value: "false"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8888
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8888
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
