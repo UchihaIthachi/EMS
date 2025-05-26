@@ -13,58 +13,76 @@ graph TD
     end
 
     subgraph "Docker Network (ems-network)"
-        LB[web-proxy/nginx:80] --> FE[frontend:80/nginx]
-        LB --> APIGW[api-gateway:8080]
+        LB_NODE["web-proxy/nginx:80"]
+        FE_NODE["frontend:80/nginx"]
+        APIGW_NODE["api-gateway:8080"]
+        CS_NODE["config-server:8888"]
+        DS_NODE["department-service:8081"]
+        ES_NODE["employee-service:8082"]
+        SR_NODE["service-registry/Eureka:8761"]
+        DB_DEPT_NODE["mysql_department:3306"]
+        DB_EMP_NODE["mysql_employee:3308"]
+        RMQ_NODE["rabbitmq:5672"]
+        GIT_NODE["Git Repo (External)"]
+        ZIPKIN_NODE["zipkin:9411"]
+        ADMINER_NODE["adminer:8085"]
+        LOGSTASH_NODE["logstash:5000"]
+        ELASTIC_NODE["elasticsearch:9200"]
+        KIBANA_NODE["kibana:5601"]
+        PROM_NODE["prometheus:9090"]
+        GRAFANA_NODE["grafana:3000"]
 
-        APIGW -->|Eureka discovery or direct Docker DNS| CS[config-server:8888]
-        APIGW -->|Eureka discovery| DS[department-service:8081]
-        APIGW -->|Eureka discovery| ES[employee-service:8082]
+        LB_NODE --> FE_NODE
+        LB_NODE --> APIGW_NODE
 
-        CS -->|Registers with| SR[service-registry/Eureka:8761]
-        DS -->|Registers with & gets config from| SR
-        DS -->|Config via| CS
-        ES -->|Registers with & gets config from| SR
-        ES -->|Config via| CS
-        APIGW -->|Registers with & gets config from| SR
-        APIGW -->|Config via| CS
+        APIGW_NODE -->|Eureka discovery or direct Docker DNS| CS_NODE
+        APIGW_NODE -->|Eureka discovery| DS_NODE
+        APIGW_NODE -->|Eureka discovery| ES_NODE
 
+        CS_NODE -->|Registers with| SR_NODE
+        DS_NODE -->|Registers with & gets config from| SR_NODE
+        DS_NODE -->|Config via| CS_NODE
+        ES_NODE -->|Registers with & gets config from| SR_NODE
+        ES_NODE -->|Config via| CS_NODE
+        APIGW_NODE -->|Registers with & gets config from| SR_NODE
+        APIGW_NODE -->|Config via| CS_NODE
 
-        DS --> DB_DEPT[mysql_department:3306]
-        ES --> DB_EMP[mysql_employee:3308]
+        DS_NODE --> DB_DEPT_NODE
+        ES_NODE --> DB_EMP_NODE
         
-        DS --> RMQ[rabbitmq:5672]
-        ES --> RMQ
+        DS_NODE --> RMQ_NODE
+        ES_NODE --> RMQ_NODE
 
         subgraph "Supporting Services (Local Docker Compose)"
-            SR
-            CS --> GIT[Git Repo (External)]
-            DB_DEPT
-            DB_EMP
-            RMQ
-            ZIPKIN[zipkin:9411]
-            ADMINER[adminer:8085]
+            SR_NODE
+            CS_NODE --> GIT_NODE
+            DB_DEPT_NODE
+            DB_EMP_NODE
+            RMQ_NODE
+            ZIPKIN_NODE
+            ADMINER_NODE
             direction LR
         end
         
-        APIGW --> ZIPKIN
-        DS --> ZIPKIN
-        ES --> ZIPKIN
+        APIGW_NODE --> ZIPKIN_NODE
+        DS_NODE --> ZIPKIN_NODE
+        ES_NODE --> ZIPKIN_NODE
 
         subgraph "Optional: Logging (Profile)"
-            LOGSTASH[logstash:5000] --> ELASTIC[elasticsearch:9200]
-            KIBANA[kibana:5601] --> ELASTIC
+            LOGSTASH_NODE --> ELASTIC_NODE
+            KIBANA_NODE --> ELASTIC_NODE
             direction LR
         end
         
         subgraph "Optional: Monitoring (Profile)"
-            PROM[prometheus:9090]
-            GRAFANA[grafana:3000] --> PROM
+            PROM_NODE
+            GRAFANA_NODE --> PROM_NODE
             direction LR
         end
         %% Service interactions with logging/monitoring not shown for brevity
     end
 
-    U --> LB
+    U --> LB_NODE
 
     classDef springService fill:#lightgreen,stroke:#333,stroke-width:2px;
     classDef db fill:#lightblue,stroke:#333,stroke-width:2px;
@@ -72,11 +90,11 @@ graph TD
     classDef tool fill:#lightgrey,stroke:#333,stroke-width:2px;
     classDef eureka fill:#MistyRose,stroke:#333,stroke-width:2px;
 
-    class APIGW,CS,DS,ES springService;
-    class DB_DEPT,DB_EMP db;
-    class RMQ mq;
-    class SR eureka;
-    class ZIPKIN,ADMINER,LOGSTASH,ELASTIC,KIBANA,PROM,GRAFANA,FE,LB tool;
+    class APIGW_NODE,CS_NODE,DS_NODE,ES_NODE springService;
+    class DB_DEPT_NODE,DB_EMP_NODE db;
+    class RMQ_NODE mq;
+    class SR_NODE eureka;
+    class ZIPKIN_NODE,ADMINER_NODE,LOGSTASH_NODE,ELASTIC_NODE,KIBANA_NODE,PROM_NODE,GRAFANA_NODE,FE_NODE,LB_NODE tool;
 ```
 
 **Key for Local Diagram:**
@@ -96,66 +114,80 @@ graph TD
     end
 
     subgraph "Kubernetes Cluster (ems-app Namespace)"
-        INGRESS[Ingress (ems.localdev.me)]
+        INGRESS_NODE["Ingress (ems.localdev.me)"]
+        GIT_EXT_NODE["Git Repo (External)"]
 
         subgraph "Deployments & StatefulSets"
-            APIGW_P[Pod: api-gateway]
-            CS_P[Pod: config-server]
-            DS_P[Pod: department-service]
-            ES_P[Pod: employee-service]
-            FE_P[Pod: frontend]
-            
-            SR_P[Pod: service-registry (Eureka disabled)]
+            APIGW_P["Pod: api-gateway"]
+            CS_P["Pod: config-server"]
+            DS_P["Pod: department-service"]
+            ES_P["Pod: employee-service"]
+            FE_P["Pod: frontend"]
+            SR_P["Pod: service-registry (Eureka disabled)"]
+            ZIPKIN_P["Pod: zipkin"]
+            ADMINER_P["Pod: adminer"]
 
-            DB_DEPT_STS[STS: mysql-department] --> PVC_DEPT[PVC: department-db]
-            DB_EMP_STS[STS: mysql-employee] --> PVC_EMP[PVC: employee-db]
-            RMQ_STS[STS: rabbitmq] --> PVC_RMQ[PVC: rabbitmq-data]
+            DB_DEPT_STS["STS: mysql-department"]
+            PVC_DEPT["PVC: department-db"]
+            DB_EMP_STS["STS: mysql-employee"]
+            PVC_EMP["PVC: employee-db"]
+            RMQ_STS["STS: rabbitmq"]
+            PVC_RMQ["PVC: rabbitmq-data"]
             
-            ZIPKIN_P[Pod: zipkin]
-            ADMINER_P[Pod: adminer]
-
+            DB_DEPT_STS --> PVC_DEPT
+            DB_EMP_STS --> PVC_EMP
+            RMQ_STS --> PVC_RMQ
+            
             subgraph "Logging Stack"
-                LOGSTASH_P[Pod: logstash] --> ELASTIC_STS[STS: elasticsearch]
-                ELASTIC_STS --> PVC_ELASTIC[PVC: elastic-data]
-                KIBANA_P[Pod: kibana] --> ELASTIC_STS
+                LOGSTASH_P["Pod: logstash"]
+                ELASTIC_STS["STS: elasticsearch"]
+                PVC_ELASTIC["PVC: elastic-data"]
+                KIBANA_P["Pod: kibana"]
+                
+                LOGSTASH_P --> ELASTIC_STS
+                ELASTIC_STS --> PVC_ELASTIC
+                KIBANA_P --> ELASTIC_STS
                 direction LR
             end
 
             subgraph "Monitoring Stack"
-                PROM_P[Pod: prometheus] --> PVC_PROM[PVC: prometheus-data]
-                GRAFANA_P[Pod: grafana] --> PVC_GRAFANA[PVC: grafana-data]
+                PROM_P["Pod: prometheus"]
+                PVC_PROM["PVC: prometheus-data"]
+                GRAFANA_P["Pod: grafana"]
+                PVC_GRAFANA["PVC: grafana-data"]
+
+                PROM_P --> PVC_PROM
+                GRAFANA_P --> PVC_GRAFANA
                 GRAFANA_P --> PROM_P
                 direction LR
             end
         end
 
         subgraph "Services (ClusterIP)"
-            APIGW_SVC[Svc: api-gateway]
-            CS_SVC[Svc: config-server]
-            DS_SVC[Svc: department-service]
-            ES_SVC[Svc: employee-service]
-            FE_SVC[Svc: frontend]
-            SR_SVC[Svc: service-registry]
-
-            DB_DEPT_SVC[Svc: mysql-department]
-            DB_EMP_SVC[Svc: mysql-employee]
-            RMQ_SVC[Svc: rabbitmq]
-            
-            ZIPKIN_SVC[Svc: zipkin]
-            ADMINER_SVC[Svc: adminer]
-            ELASTIC_SVC[Svc: elasticsearch]
-            LOGSTASH_SVC[Svc: logstash]
-            KIBANA_SVC[Svc: kibana]
-            PROM_SVC[Svc: prometheus]
-            GRAFANA_SVC[Svc: grafana]
+            APIGW_SVC["Svc: api-gateway"]
+            CS_SVC["Svc: config-server"]
+            DS_SVC["Svc: department-service"]
+            ES_SVC["Svc: employee-service"]
+            FE_SVC["Svc: frontend"]
+            SR_SVC["Svc: service-registry"]
+            DB_DEPT_SVC["Svc: mysql-department"]
+            DB_EMP_SVC["Svc: mysql-employee"]
+            RMQ_SVC["Svc: rabbitmq"]
+            ZIPKIN_SVC["Svc: zipkin"]
+            ADMINER_SVC["Svc: adminer"]
+            ELASTIC_SVC["Svc: elasticsearch"]
+            LOGSTASH_SVC["Svc: logstash"]
+            KIBANA_SVC["Svc: kibana"]
+            PROM_SVC["Svc: prometheus"]
+            GRAFANA_SVC["Svc: grafana"]
         end
 
-        INGRESS --> FE_SVC
-        INGRESS -- Path /api --> APIGW_SVC
-        INGRESS -- Path /grafana --> GRAFANA_SVC
-        INGRESS -- Path /kibana --> KIBANA_SVC
-        INGRESS -- Path /zipkin --> ZIPKIN_SVC
-        INGRESS -- Path /adminer --> ADMINER_SVC
+        INGRESS_NODE --> FE_SVC
+        INGRESS_NODE -- Path /api --> APIGW_SVC
+        INGRESS_NODE -- Path /grafana --> GRAFANA_SVC
+        INGRESS_NODE -- Path /kibana --> KIBANA_SVC
+        INGRESS_NODE -- Path /zipkin --> ZIPKIN_SVC
+        INGRESS_NODE -- Path /adminer --> ADMINER_SVC
         
         APIGW_P -->|K8s DNS| CS_SVC
         APIGW_P -->|K8s DNS| DS_SVC
@@ -171,7 +203,7 @@ graph TD
         DS_P -->|K8s DNS| RMQ_SVC
         ES_P -->|K8s DNS| RMQ_SVC
         
-        CS_P --> GIT[Git Repo (External)]
+        CS_P --> GIT_EXT_NODE
 
         %% Pods connect to services
         APIGW_P -.-> APIGW_SVC
@@ -195,7 +227,7 @@ graph TD
         %% APIGW_P -- logs --> LOGSTASH_P (via node log collector typically)
         %% DS_P -- metrics --> PROM_P (via /actuator/prometheus)
     end
-    U --> INGRESS
+    U --> INGRESS_NODE
 
     classDef k8sDeployment fill:#lightgreen,stroke:#333,stroke-width:2px;
     classDef k8sStatefulSet fill:#PaleTurquoise,stroke:#333,stroke-width:2px;
@@ -208,7 +240,7 @@ graph TD
     class DB_DEPT_STS,DB_EMP_STS,RMQ_STS,ELASTIC_STS k8sStatefulSet;
     class APIGW_SVC,CS_SVC,DS_SVC,ES_SVC,FE_SVC,SR_SVC,DB_DEPT_SVC,DB_EMP_SVC,RMQ_SVC,ZIPKIN_SVC,ADMINER_SVC,ELASTIC_SVC,LOGSTASH_SVC,KIBANA_SVC,PROM_SVC,GRAFANA_SVC k8sService;
     class PVC_DEPT,PVC_EMP,PVC_RMQ,PVC_ELASTIC,PVC_PROM,PVC_GRAFANA k8sPVC;
-    class INGRESS k8sIngress;
+    class INGRESS_NODE k8sIngress;
 ```
 
 **Key for Kubernetes Diagram:**
