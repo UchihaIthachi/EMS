@@ -9,6 +9,8 @@ For developers wanting to test the CI/CD pipeline locally, a Docker Compose file
 - **Nexus:** Accessible at http://localhost:8081. Persistent data in `nexus_data` volume.
 - **Local Docker Registry:** Runs on port 5000. Accessible as `localhost:5000`. Persistent data in `local_registry_data` volume.
 
+The Jenkins pipeline defined in `Jenkinsfile` (see details in `ci-cd.md`) is designed to integrate with such a local CI/CD setup and includes a stage to deploy the application to Kubernetes.
+
 **To run:**
 ```bash
 docker-compose -f docker-compose-cicd.yml up -d
@@ -198,9 +200,12 @@ This section describes how to deploy the application to a local Minikube Kuberne
 
 3.  **Docker Images:**
     The Kubernetes manifests reference Docker images like `your-docker-registry/service-name:latest`. You need to ensure your Minikube cluster can access these images.
-    *   **Using a Public Registry (e.g., Docker Hub):**
-        - The Jenkins pipeline (see `Jenkinsfile`) should be configured to push images to your chosen registry (e.g., `yourdockerhubusername/service-name:tag`).
-        - Update the `image:` fields in all `Deployment` and `StatefulSet` YAML files within `deploy/k8s/deployments/` and `deploy/k8s/statefulsets/` to point to your actual image path and tag. For example, change `your-docker-registry/api-gateway:latest` to `yourdockerhubusername/api-gateway:some-tag`.
+    *   **Image Source and CI/CD Integration:**
+        The Kubernetes manifests are designed to work with images built and pushed by the Jenkins CI/CD pipeline (see `Jenkinsfile` and `ci-cd.md`).
+        - The pipeline tags images with both a unique build number (e.g., `yourdockerregistry/service-name:build-123`) and a static `latest` tag (e.g., `yourdockerregistry/service-name:latest`). Both are pushed to the configured Docker registry.
+        - The Kubernetes YAML files in `deploy/k8s/deployments/` and `deploy/k8s/statefulsets/` for custom-built services are configured to use the `:latest` tag (e.g., `image: yourdockerregistry/api-gateway:latest`) and have `imagePullPolicy: Always` set.
+        - **Action Required:** Before deploying to Kubernetes (manually or allowing Jenkins to deploy), you **must** update the placeholder `yourdockerregistry/` prefix in the `image:` fields within these YAML files to your actual Docker registry URL/username that Jenkins uses.
+        - If you are not using the Jenkins pipeline to build and push images, you will need to ensure that images with the correct names and `:latest` tag are available in your Minikube environment or chosen registry, and that the `yourdockerregistry/` prefix in the YAMLs is updated accordingly.
     *   **Using Minikube's Internal Docker Registry:**
         - You can build images directly into Minikube's Docker daemon:
           ```bash

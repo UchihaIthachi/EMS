@@ -34,15 +34,18 @@ pipeline {
                             stage('Build Docker Image') {
                                 script {
                                     def imageName = "${env.DOCKER_REGISTRY_URL}/department-service:${env.BUILD_NUMBER}"
+                                    def latestImageName = "${env.DOCKER_REGISTRY_URL}/department-service:latest"
                                     sh "docker build -t ${imageName} ."
+                                    sh "docker tag ${imageName} ${latestImageName}"
                                 }
                             }
                             stage('Push Docker Image') {
                                 script {
                                     def imageName = "${env.DOCKER_REGISTRY_URL}/department-service:${env.BUILD_NUMBER}"
-                                    // Assumes Docker credentials are set up in Jenkins
+                                    def latestImageName = "${env.DOCKER_REGISTRY_URL}/department-service:latest"
                                     docker.withRegistry("https://${env.DOCKER_REGISTRY_URL}", env.DOCKER_CREDENTIALS_ID) {
                                         sh "docker push ${imageName}"
+                                        sh "docker push ${latestImageName}"
                                     }
                                 }
                             }
@@ -61,14 +64,18 @@ pipeline {
                             stage('Build Docker Image') {
                                 script {
                                     def imageName = "${env.DOCKER_REGISTRY_URL}/frontend:${env.BUILD_NUMBER}"
+                                    def latestImageName = "${env.DOCKER_REGISTRY_URL}/frontend:latest"
                                     sh "docker build -t ${imageName} ."
+                                    sh "docker tag ${imageName} ${latestImageName}"
                                 }
                             }
                             stage('Push Docker Image') {
                                 script {
                                     def imageName = "${env.DOCKER_REGISTRY_URL}/frontend:${env.BUILD_NUMBER}"
+                                    def latestImageName = "${env.DOCKER_REGISTRY_URL}/frontend:latest"
                                     docker.withRegistry("https://${env.DOCKER_REGISTRY_URL}", env.DOCKER_CREDENTIALS_ID) {
                                         sh "docker push ${imageName}"
+                                        sh "docker push ${latestImageName}"
                                     }
                                 }
                             }
@@ -88,14 +95,18 @@ pipeline {
                             stage('Build Docker Image') {
                                 script {
                                     def imageName = "${env.DOCKER_REGISTRY_URL}/service-registry:${env.BUILD_NUMBER}"
+                                    def latestImageName = "${env.DOCKER_REGISTRY_URL}/service-registry:latest"
                                     sh "docker build -t ${imageName} ."
+                                    sh "docker tag ${imageName} ${latestImageName}"
                                 }
                             }
                             stage('Push Docker Image') {
                                 script {
                                     def imageName = "${env.DOCKER_REGISTRY_URL}/service-registry:${env.BUILD_NUMBER}"
+                                    def latestImageName = "${env.DOCKER_REGISTRY_URL}/service-registry:latest"
                                     docker.withRegistry("https://${env.DOCKER_REGISTRY_URL}", env.DOCKER_CREDENTIALS_ID) {
                                         sh "docker push ${imageName}"
+                                        sh "docker push ${latestImageName}"
                                     }
                                 }
                             }
@@ -115,14 +126,18 @@ pipeline {
                             stage('Build Docker Image') {
                                 script {
                                     def imageName = "${env.DOCKER_REGISTRY_URL}/config-server:${env.BUILD_NUMBER}"
+                                    def latestImageName = "${env.DOCKER_REGISTRY_URL}/config-server:latest"
                                     sh "docker build -t ${imageName} ."
+                                    sh "docker tag ${imageName} ${latestImageName}"
                                 }
                             }
                             stage('Push Docker Image') {
                                 script {
                                     def imageName = "${env.DOCKER_REGISTRY_URL}/config-server:${env.BUILD_NUMBER}"
+                                    def latestImageName = "${env.DOCKER_REGISTRY_URL}/config-server:latest"
                                     docker.withRegistry("https://${env.DOCKER_REGISTRY_URL}", env.DOCKER_CREDENTIALS_ID) {
                                         sh "docker push ${imageName}"
+                                        sh "docker push ${latestImageName}"
                                     }
                                 }
                             }
@@ -142,14 +157,18 @@ pipeline {
                             stage('Build Docker Image') {
                                 script {
                                     def imageName = "${env.DOCKER_REGISTRY_URL}/api-gateway:${env.BUILD_NUMBER}"
+                                    def latestImageName = "${env.DOCKER_REGISTRY_URL}/api-gateway:latest"
                                     sh "docker build -t ${imageName} ."
+                                    sh "docker tag ${imageName} ${latestImageName}"
                                 }
                             }
                             stage('Push Docker Image') {
                                 script {
                                     def imageName = "${env.DOCKER_REGISTRY_URL}/api-gateway:${env.BUILD_NUMBER}"
+                                    def latestImageName = "${env.DOCKER_REGISTRY_URL}/api-gateway:latest"
                                     docker.withRegistry("https://${env.DOCKER_REGISTRY_URL}", env.DOCKER_CREDENTIALS_ID) {
                                         sh "docker push ${imageName}"
+                                        sh "docker push ${latestImageName}"
                                     }
                                 }
                             }
@@ -169,14 +188,18 @@ pipeline {
                             stage('Build Docker Image') {
                                 script {
                                     def imageName = "${env.DOCKER_REGISTRY_URL}/employee-service:${env.BUILD_NUMBER}"
+                                    def latestImageName = "${env.DOCKER_REGISTRY_URL}/employee-service:latest"
                                     sh "docker build -t ${imageName} ."
+                                    sh "docker tag ${imageName} ${latestImageName}"
                                 }
                             }
                             stage('Push Docker Image') {
                                 script {
                                     def imageName = "${env.DOCKER_REGISTRY_URL}/employee-service:${env.BUILD_NUMBER}"
+                                    def latestImageName = "${env.DOCKER_REGISTRY_URL}/employee-service:latest"
                                     docker.withRegistry("https://${env.DOCKER_REGISTRY_URL}", env.DOCKER_CREDENTIALS_ID) {
                                         sh "docker push ${imageName}"
+                                        sh "docker push ${latestImageName}"
                                     }
                                 }
                             }
@@ -190,15 +213,28 @@ pipeline {
                 // - employee-service (Done)
             }
         }
-        // Optional Stage for K8s deployment
-        // stage('Deploy to Minikube') {
-        //     steps {
-        //         echo "Applying K8s manifests..."
-        //         // This would require kubectl configured on the Jenkins agent
-        //         // and access to the Minikube cluster.
-        //         // Also, image names in K8s manifests need to be updated or use :latest and imagePullPolicy: Always
-        //         sh 'kubectl apply -f deploy/k8s/ --recursive'
-        //     }
-        // }
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo "Deploying application to Kubernetes namespace ems-app..."
+                // Ensure KUBECONFIG is set up in the Jenkins agent environment
+                // or use withKubeconfig if credentials plugin is used.
+                sh 'kubectl config current-context' // Good to log which context is being used
+                sh 'kubectl apply -f deploy/k8s/00-namespace.yaml'
+                sh 'kubectl apply -f deploy/k8s/configmaps/ -n ems-app'
+                sh 'kubectl apply -f deploy/k8s/secrets/ -n ems-app' // Secrets should be managed securely, e.g. Jenkins credentials
+                sh 'kubectl apply -f deploy/k8s/pvcs/ -n ems-app'
+                sh 'kubectl apply -f deploy/k8s/headless-services/ -n ems-app'
+                sh 'kubectl apply -f deploy/k8s/services/ -n ems-app'
+                sh 'kubectl apply -f deploy/k8s/statefulsets/ -n ems-app'
+                sh 'kubectl apply -f deploy/k8s/deployments/ -n ems-app'
+                sh 'kubectl apply -f deploy/k8s/ingress/ -n ems-app'
+                
+                echo "Waiting a bit for resources to be created..."
+                sh 'sleep 30' // Simple delay, consider using `kubectl rollout status` for key deployments
+
+                echo "Current pods in ems-app namespace:"
+                sh 'kubectl get pods -n ems-app'
+            }
+        }
     }
 }

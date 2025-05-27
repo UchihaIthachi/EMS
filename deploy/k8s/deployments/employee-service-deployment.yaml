@@ -18,6 +18,7 @@ spec:
       containers:
         - name: employee-service
           image: your-docker-registry/employee-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8082
           env:

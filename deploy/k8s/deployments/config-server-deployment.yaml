@@ -18,6 +18,7 @@ spec:
       containers:
         - name: config-server
           image: your-docker-registry/config-server:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8888
           env:

@@ -18,6 +18,7 @@ spec:
       containers:
         - name: service-registry
           image: your-docker-registry/service-registry:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8761
           env:
