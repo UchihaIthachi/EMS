@@ -5,21 +5,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ceb244f0-bc57-4803-adb8-8caaef2d0a62" name="Changes" comment="new coomit">
-      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config-server/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/config-server/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/entity/Department.java" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/entity/Department.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/repository/DepartmentRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/repository/DepartmentRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/service/impl/DepartmentServiceIMPL.java" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/main/java/com/springbootacademy/departmentservice/service/impl/DepartmentServiceIMPL.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/department-service/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/department-service/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/deploy/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/employee-service/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/employee-service/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/service-ops.sh" beforeDir="false" afterPath="$PROJECT_DIR$/service-ops.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/service-registry/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/service-registry/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Jenkinsfile" beforeDir="false" afterPath="$PROJECT_DIR$/Jenkinsfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deploy/k8s/deployments/api-gateway-deployment.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/k8s/deployments/api-gateway-deployment.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deploy/k8s/deployments/config-server-deployment.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/k8s/deployments/config-server-deployment.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deploy/k8s/deployments/department-service-deployment.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/k8s/deployments/department-service-deployment.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deploy/k8s/deployments/employee-service-deployment.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/k8s/deployments/employee-service-deployment.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deploy/k8s/deployments/frontend-deployment.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/k8s/deployments/frontend-deployment.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deploy/k8s/deployments/service-registry-deployment.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/k8s/deployments/service-registry-deployment.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose-cicd.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose-cicd.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,12 +37,12 @@
     &quot;assignee&quot;: &quot;UchihaIthachi&quot;
   }
 }</component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/UchihaIthachi/EMS",
-    "accountId": "6e18133f-681c-4f0c-beca-9d1fd1cf1894"
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/UchihaIthachi/EMS&quot;,
+    &quot;accountId&quot;: &quot;6e18133f-681c-4f0c-beca-9d1fd1cf1894&quot;
   }
-}]]></component>
+}</component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
@@ -73,43 +67,43 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
-    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
-    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
-    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
-    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;Spring Boot.ApiGatewayApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.ConfigServerApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.DepartmentServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.EmployeeServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.OrganizationServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.ServiceRegistryApplication.executor&quot;: &quot;Run&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;hot-fix&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/User/Desktop/EMS&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
-    &quot;run.configurations.included.in.services&quot;: &quot;true&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;reference.projectsettings.compiler.annotationProcessors&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_ADD_EXTERNAL_FILES": "true",
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "Spring Boot.ApiGatewayApplication.executor": "Run",
+    "Spring Boot.ConfigServerApplication.executor": "Run",
+    "Spring Boot.DepartmentServiceApplication.executor": "Run",
+    "Spring Boot.EmployeeServiceApplication.executor": "Run",
+    "Spring Boot.OrganizationServiceApplication.executor": "Run",
+    "Spring Boot.ServiceRegistryApplication.executor": "Run",
+    "git-widget-placeholder": "feat/k8s-cicd-setup",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/User/Desktop/EMS",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "Project",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.2",
+    "run.configurations.included.in.services": "true",
+    "settings.editor.selected.configurable": "reference.projectsettings.compiler.annotationProcessors",
+    "vue.rearranger.settings.migration": "true"
   },
-  &quot;keyToStringList&quot;: {
-    &quot;DatabaseDriversLRU&quot;: [
-      &quot;mysql&quot;
+  "keyToStringList": {
+    "DatabaseDriversLRU": [
+      "mysql"
     ]
   }
-}</component>
+}]]></component>
   <component name="RunManager" selected="Spring Boot.ConfigServerApplication">
     <configuration default="true" type="JetRunConfigurationType">
       <module name="Marketplace_Platform" />
@@ -213,6 +207,7 @@
       <workItem from="1733698147618" duration="3713000" />
       <workItem from="1747228908246" duration="17129000" />
       <workItem from="1748187059842" duration="4964000" />
+      <workItem from="1751050793843" duration="2175000" />
     </task>
     <task id="LOCAL-00001" summary="add deply configures">
       <created>1733398213543</created>

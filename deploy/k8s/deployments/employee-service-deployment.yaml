@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: employee-service
-          image: your-docker-registry/employee-service:latest
+          image: harshana2020/employee-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8082

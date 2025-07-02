@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: your-docker-registry/api-gateway:latest
+          image: harshana2020/api-gateway:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: your-docker-registry/frontend:latest
+          image: harshana2020/frontend:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 80

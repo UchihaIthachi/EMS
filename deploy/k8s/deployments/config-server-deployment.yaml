@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: config-server
-          image: your-docker-registry/config-server:latest
+          image: harshana2020/config-server:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8888

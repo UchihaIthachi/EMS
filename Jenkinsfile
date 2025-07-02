@@ -2,11 +2,12 @@ pipeline {
     agent any // Or a specific agent label
 
     environment {
-        NEXUS_URL = 'http://your-nexus-url/repository/maven-releases/' // Example
-        NEXUS_CREDENTIALS_ID = 'nexus-credentials' // Jenkins credential ID for Nexus
-        DOCKER_REGISTRY_URL = 'yourdockerregistry' // E.g., your Docker Hub username or private registry URL
-        DOCKER_CREDENTIALS_ID = 'docker-registry-credentials' // Jenkins credential ID for Docker registry
+        NEXUS_URL = 'http://local-nexus:8081/repository/maven-releases/'
+        NEXUS_CREDENTIALS_ID = 'nexus-credentials'
+        DOCKER_REGISTRY_URL = 'https://hub.docker.com/u/harshana2020'
+        DOCKER_CREDENTIALS_ID = 'docker-registry-credentials'
     }
+
 
     stages {
         stage('Checkout') {
@@ -17,7 +18,7 @@ pipeline {
 
         stage('Build, Publish & Push All Services') {
             parallel {
-                // --- Example for one Java Microservice: department-service ---
+
                 stage('department-service') {
                     steps {
                         dir('department-service') {
@@ -53,14 +54,13 @@ pipeline {
                     }
                 }
 
-                // --- Example for Frontend ---
                 stage('frontend') {
                     steps {
                         dir('frontend') {
-                            stage('Build') {
-                                sh 'npm install'
-                                sh 'npm run build'
-                            }
+                            // stage('Build') {
+                            //     sh 'npm install'
+                            //     sh 'npm run build'
+                            // }
                             stage('Build Docker Image') {
                                 script {
                                     def imageName = "${env.DOCKER_REGISTRY_URL}/frontend:${env.BUILD_NUMBER}"
@@ -230,7 +230,7 @@ pipeline {
                 sh 'kubectl apply -f deploy/k8s/ingress/ -n ems-app'
                 
                 echo "Waiting a bit for resources to be created..."
-                sh 'sleep 30' // Simple delay, consider using `kubectl rollout status` for key deployments
+                sh 'sleep 30'
 
                 echo "Current pods in ems-app namespace:"
                 sh 'kubectl get pods -n ems-app'

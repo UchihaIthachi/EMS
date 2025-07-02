@@ -1,11 +1,11 @@
-version: '3.8'
+version: "3.8"
 
 services:
   jenkins:
     image: jenkins/jenkins:lts-jdk11 # Using JDK11 version, often good for Java projects
     container_name: local-jenkins
     ports:
-      - "8080:8080" # Jenkins UI
+      - "8079:8080" # Jenkins UI
       - "50000:50000" # Jenkins agent port
     volumes:
       - jenkins_home:/var/jenkins_home

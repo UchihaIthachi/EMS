@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: service-registry
-          image: your-docker-registry/service-registry:latest
+          image: harshana2020/service-registry:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8761

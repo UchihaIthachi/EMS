@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: department-service
-          image: your-docker-registry/department-service:latest
+          image: harshana2020/department-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8081
