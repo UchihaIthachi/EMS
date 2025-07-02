@@ -1,0 +1,364 @@
+version: "3.8"
+
+# This file is intended for use in a CI/CD pipeline, referencing images built and pushed
+# to a container registry (e.g., ghcr.io).
+# Replace 'your-github-username-or-org' with your actual GitHub username or organization.
+# Replace 'IMAGE_PLACEHOLDER' with the actual image tag (e.g., commit SHA) during deployment.
+
+services:
+  rabbitmq:
+    image: rabbitmq:management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - ems-network
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  zipkin:
+    image: openzipkin/zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - ems-network
+
+  mysql_department:
+    image: mysql:8
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DEPARTMENT_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_department_data:/var/lib/mysql
+      # In a K8s context, init scripts might be handled by ConfigMaps and init containers
+      - ./init/department-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ems-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "127.0.0.1",
+          "-u",
+          "root",
+          "--password=${MYSQL_ROOT_PASSWORD}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mysql_employee:
+    image: mysql:8
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${EMPLOYEE_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_employee_data:/var/lib/mysql
+      # In a K8s context, init scripts might be handled by ConfigMaps and init containers
+      - ./init/employee-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ems-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "127.0.0.1",
+          "-u",
+          "root",
+          "--password=${MYSQL_ROOT_PASSWORD}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  service-registry:
+    image: ghcr.io/your-github-username-or-org/service-registry:IMAGE_PLACEHOLDER
+    ports:
+      - "${SERVICE_REGISTRY_PORT}:${SERVICE_REGISTRY_PORT}"
+    environment:
+      SPRING_APPLICATION_NAME: service-registry
+      SERVER_PORT: ${SERVICE_REGISTRY_PORT}
+      # For CICD, Eureka might run in a different mode or be replaced by K8s service discovery
+      REGISTER_WITH_EUREKA: "false" # This might change depending on your K8s strategy
+      FETCH_REGISTRY: "false"      # This might change depending on your K8s strategy
+      SPRING_PROFILES_ACTIVE: cicd-eureka # Or 'kubernetes' if using Spring Cloud Kubernetes
+    networks:
+      - ems-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${SERVICE_REGISTRY_PORT}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  config-server:
+    image: ghcr.io/your-github-username-or-org/config-server:IMAGE_PLACEHOLDER
+    ports:
+      - "8888:8888"
+    environment:
+      SPRING_APPLICATION_NAME: config-server
+      SERVER_PORT: 8888
+      CONFIG_REPO_URI: https://github.com/UchihaIthachi/configuration-server-repo
+      CONFIG_CLONE_ON_START: "true"
+      CONFIG_DEFAULT_LABEL: main
+      GIT_USERNAME: UchihaIthachi # Consider if this is needed if PAT is used for private repo
+      GIT_PAT: ${GIT_PAT} # Ensure this is supplied via K8s secrets
+      EUREKA_SERVER: http://service-registry:${SERVICE_REGISTRY_PORT}/eureka # Adjust if Eureka setup changes
+      SPRING_PROFILES_ACTIVE: cicd-eureka # Or 'kubernetes'
+    depends_on:
+      service-registry: # May or may not be relevant depending on K8s discovery and startup probes
+        condition: service_healthy
+    networks:
+      - ems-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    image: ghcr.io/your-github-username-or-org/api-gateway:IMAGE_PLACEHOLDER
+    container_name: api-gateway # Name might be ignored in K8s
+    ports:
+      - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}"
+    environment:
+      SPRING_APPLICATION_NAME: api-gateway
+      SERVER_PORT: ${API_GATEWAY_PORT}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:${SERVICE_REGISTRY_PORT}/eureka/ # Adjust if Eureka setup changes
+      ZIPKIN_BASE_URL: ${ZIPKIN_BASE_URL} # Ensure Zipkin is accessible
+      SLEUTH_SAMPLER_PROBABILITY: ${SLEUTH_SAMPLER_PROBABILITY}
+      SPRING_PROFILES_ACTIVE: cicd-eureka # Or 'kubernetes'
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    networks:
+      - ems-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${API_GATEWAY_PORT}/actuator/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  department-service:
+    image: ghcr.io/your-github-username-or-org/department-service:IMAGE_PLACEHOLDER
+    ports:
+      - "${DEPARTMENT_SERVICE_PORT}:${DEPARTMENT_SERVICE_PORT}"
+    environment:
+      SPRING_APPLICATION_NAME: department-service
+      CONFIG_SERVER_URI: http://config-server:8888 # Ensure resolvable and accessible
+      DATABASE_URL: jdbc:mysql://mysql_department:3306/${DEPARTMENT_DB}?createDatabaseIfNotExist=true
+      DATABASE_USERNAME: root # Use K8s secrets for production
+      DATABASE_PASSWORD: ${MYSQL_ROOT_PASSWORD} # Use K8s secrets for production
+      HIBERNATE_DIALECT: org.hibernate.dialect.MySQL8Dialect
+      HIBERNATE_DDL_AUTO: update # Consider 'validate' or 'none' for production
+      RABBITMQ_HOST: rabbitmq # Ensure resolvable
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME} # Use K8s secrets
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD} # Use K8s secrets
+      ZIPKIN_BASE_URL: ${ZIPKIN_BASE_URL}
+      EUREKA_SERVER: http://service-registry:${SERVICE_REGISTRY_PORT}/eureka # Adjust if Eureka setup changes
+      SPRING_PROFILES_ACTIVE: cicd-eureka # Or 'kubernetes'
+    depends_on:
+      mysql_department:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ems-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${DEPARTMENT_SERVICE_PORT}/actuator/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  employee-service:
+    image: ghcr.io/your-github-username-or-org/employee-service:IMAGE_PLACEHOLDER
+    ports:
+      - "${EMPLOYEE_SERVICE_PORT}:${EMPLOYEE_SERVICE_PORT}"
+    environment:
+      SPRING_APPLICATION_NAME: employee-service
+      CONFIG_SERVER_URI: http://config-server:8888
+      DATABASE_URL: jdbc:mysql://mysql_employee:3306/${EMPLOYEE_DB}?createDatabaseIfNotExist=true
+      DATABASE_USERNAME: root
+      DATABASE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      HIBERNATE_DIALECT: org.hibernate.dialect.MySQL8Dialect
+      HIBERNATE_DDL_AUTO: update # Consider 'validate' or 'none' for production
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      ZIPKIN_BASE_URL: ${ZIPKIN_BASE_URL}
+      EUREKA_SERVER: http://service-registry:${SERVICE_REGISTRY_PORT}/eureka
+      SPRING_PROFILES_ACTIVE: cicd-eureka # Or 'kubernetes'
+    depends_on:
+      mysql_employee:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ems-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${EMPLOYEE_SERVICE_PORT}/actuator/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer
+    ports:
+      - "8085:8080" # Consider if this is needed in CICD/production
+    networks:
+      - ems-network
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/your-github-username-or-org/frontend:IMAGE_PLACEHOLDER
+    ports:
+      - "3001:80" # Assuming frontend serves on port 80 in the container
+    networks:
+      - ems-network
+    depends_on: # In K8s, readiness probes on api-gateway would be more typical
+      - api-gateway
+    # volumes: # Nginx logs from frontend might be handled differently (e.g. stdout/stderr)
+      # - ./nginx-logs:/var/log/nginx # Or use a persistent volume in K8s
+
+  web-proxy: # This is your main Nginx reverse proxy
+    image: nginx:alpine # Using standard nginx, no custom build in this setup
+    container_name: web-proxy
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf # Mount custom Nginx config - use ConfigMap in K8s
+    ports:
+      - "80:80" # Exposes Nginx on port 80
+    depends_on:
+      - frontend
+      - api-gateway
+    networks:
+      - ems-network
+
+  # Monitoring & Logging stack - often deployed separately or as a cluster-wide service in K8s
+  # These are included for completeness if you intend to run them via compose in a CICD demo env.
+  # For actual production on K8s, you'd typically use a managed ELK/EFK stack and Prometheus operator.
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    ports:
+      - "9113:9113"
+    command:
+      - "--nginx.scrape-uri=http://web-proxy/nginx_status" # web-proxy must expose /nginx_status
+    networks:
+      - ems-network
+    profiles: ["monitoring"]
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false # For production, enable security
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    networks:
+      - ems-network
+    profiles: ["logging"]
+    # volumes: - elasticsearch_data:/usr/share/elasticsearch/data # For persistent data
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.17.9
+    ports:
+      - "5000:5000" # For Beats input or other log inputs
+    volumes:
+      - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf # Use ConfigMap in K8s
+    depends_on:
+      - elasticsearch
+    networks:
+      - ems-network
+    profiles: ["logging"]
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.9
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - ems-network
+    profiles: ["logging"]
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml # Use ConfigMap in K8s
+      # - prometheus_data:/prometheus # For persistent data
+    ports:
+      - "9090:9090"
+    networks:
+      - ems-network
+    profiles: ["monitoring"]
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - ems-network
+    # volumes: - grafana_data:/var/lib/grafana # For persistent dashboards/configs
+    profiles: ["monitoring"]
+
+volumes:
+  mysql_department_data: # For K8s, use PersistentVolumeClaims
+  mysql_employee_data:   # For K8s, use PersistentVolumeClaims
+  # elasticsearch_data:
+  # prometheus_data:
+  # grafana_data:
+
+networks:
+  ems-network:
+    driver: bridge
+    # In K8s, networking is handled by CNI and Services
