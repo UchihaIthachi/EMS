@@ -66,10 +66,10 @@ build_image() {
       ${build_args_str:+$build_args_str} \
       "${context_path}" \
       --push; then
-    log "✅ Successfully built and pushed ${image_tag} (and latest)"
+    log "Successfully built and pushed ${image_tag} (and latest)"
     return 0
   else
-    log "❌ Build failed for ${image_tag}"
+    log "Build failed for ${image_tag}"
     return 1
   fi
 }
