@@ -58,13 +58,18 @@ build_image() {
     fi
   fi
 
-  if docker build -t "${image_tag}" -f "${dockerfile_path}" ${build_args_str} "${context_path}"; then
-    log "Successfully built ${image_tag}"
-    docker tag "${image_tag}" "${latest_tag}"
-    log "Tagged ${image_tag} as ${latest_tag}"
+  if docker buildx build \
+      --platform linux/amd64 \
+      -t "${image_tag}" \
+      -t "${latest_tag}" \
+      -f "${dockerfile_path}" \
+      ${build_args_str:+$build_args_str} \
+      "${context_path}" \
+      --push; then
+    log "✅ Successfully built and pushed ${image_tag} (and latest)"
     return 0
   else
-    log "ERROR: Failed to build ${image_tag}"
+    log "❌ Build failed for ${image_tag}"
     return 1
   fi
 }
