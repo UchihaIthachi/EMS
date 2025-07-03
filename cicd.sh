@@ -110,7 +110,7 @@ action_build_and_push() {
   for service in "${SERVICES_TO_BUILD[@]}"; do
     log "Processing service: ${service}"
     if build_image "${service}"; then
-      push_image "${service}"
+      # push_image "${service}"
     else
       log "Skipping push for ${service} due to build failure."
       # Depending on policy, you might want to exit here:
