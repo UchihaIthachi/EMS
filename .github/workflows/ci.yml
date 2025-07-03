@@ -2,20 +2,20 @@ name: CI Workflow
 
 on:
   push:
-    branches: [ main ] # Or your default branch
+    branches: [main, deploy]
   pull_request:
-    branches: [ main ] # Or your default branch
+    branches: [main, deploy]
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME_PREFIX: ${{ github.repository_owner }}/ # Using owner as prefix, can be customized
+  IMAGE_NAME_PREFIX: ${{ github.repository_owner }}/
 
 jobs:
   build_and_push_images:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # Needed to push to GitHub Container Registry
+      packages: write
 
     steps:
       - name: Checkout repository
