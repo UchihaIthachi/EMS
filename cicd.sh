@@ -32,26 +32,23 @@ log() {
 
 build_image() {
   local service_name=$1
-  local image_tag="${REGISTRY}/${IMAGE_NAME_PREFIX,,}/${service_name}:${GIT_COMMIT_SHA}" # Lowercase prefix
-  local dockerfile_path="./${service_name}/Dockerfile" # Assuming Dockerfile is in the service's root directory
+  local image_tag="${REGISTRY}/${IMAGE_NAME_PREFIX,,}/${service_name}:${GIT_COMMIT_SHA}"
+  local latest_tag="${REGISTRY}/${IMAGE_NAME_PREFIX,,}/${service_name}:latest"
+  local dockerfile_path="./${service_name}/Dockerfile"
   local context_path="./${service_name}"
 
-  if [ ! -f "${context_path}/Dockerfile" ]; then
-    # Try to find Dockerfile in ../service-name if not in service-name/
+  if [ ! -f "${dockerfile_path}" ]; then
     dockerfile_path="../${service_name}/Dockerfile"
     context_path="../${service_name}"
     if [ ! -f "${dockerfile_path}" ]; then
-        log "ERROR: Dockerfile not found for service ${service_name} in ./${service_name}/ or ../${service_name}/"
-        return 1
+      log "ERROR: Dockerfile not found for service ${service_name} in ./${service_name}/ or ../${service_name}/"
+      return 1
     fi
   fi
 
   log "Building ${service_name} -> ${image_tag}"
   log "Context: ${context_path}, Dockerfile: ${dockerfile_path}"
 
-  # We need to pass build args like GIT_PAT if the Dockerfile needs them.
-  # The local docker-compose.yml shows that config-server needs GIT_PAT.
-  # This is a placeholder; you'll need to manage secrets appropriately.
   local build_args_str=""
   if [ "$service_name" == "config-server" ]; then
     if [ -z "$GIT_PAT" ]; then
@@ -61,12 +58,10 @@ build_image() {
     fi
   fi
 
-  # Other services might need their specific build ARGs from the .env or docker-compose.yml
-  # For example, if services need SPRING_PROFILES_ACTIVE at build time.
-  # This example focuses on config-server's GIT_PAT.
-
   if docker build -t "${image_tag}" -f "${dockerfile_path}" ${build_args_str} "${context_path}"; then
     log "Successfully built ${image_tag}"
+    docker tag "${image_tag}" "${latest_tag}"
+    log "Tagged ${image_tag} as ${latest_tag}"
     return 0
   else
     log "ERROR: Failed to build ${image_tag}"
@@ -74,16 +69,26 @@ build_image() {
   fi
 }
 
+
 push_image() {
   local service_name=$1
-  local image_tag="${REGISTRY}/${IMAGE_NAME_PREFIX,,}/${service_name}:${GIT_COMMIT_SHA}" # Lowercase prefix
+  local image_tag="${REGISTRY}/${IMAGE_NAME_PREFIX,,}/${service_name}:${GIT_COMMIT_SHA}"
+  local latest_tag="${REGISTRY}/${IMAGE_NAME_PREFIX,,}/${service_name}:latest"
 
   log "Pushing ${image_tag}"
   if docker push "${image_tag}"; then
     log "Successfully pushed ${image_tag}"
   else
     log "ERROR: Failed to push ${image_tag}"
-    exit 1 # Exit script if push fails
+    exit 1
+  fi
+
+  log "Pushing ${latest_tag}"
+  if docker push "${latest_tag}"; then
+    log "Successfully pushed ${latest_tag}"
+  else
+    log "ERROR: Failed to push ${latest_tag}"
+    exit 1
   fi
 }
 
