@@ -110,6 +110,7 @@ action_build_and_push() {
   for service in "${SERVICES_TO_BUILD[@]}"; do
     log "Processing service: ${service}"
     if build_image "${service}"; then
+      log "Image already pushed during buildx step. Skipping separate push for ${service}."
       # push_image "${service}"
     else
       log "Skipping push for ${service} due to build failure."
