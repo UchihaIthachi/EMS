@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME_PREFIX: ${{ github.repository_owner }}/
+  IMAGE_NAME_PREFIX: ${{ github.repository_owner }}
 
 jobs:
   build_and_push_images:
@@ -39,8 +39,7 @@ jobs:
           chmod +x cicd.sh
           ./cicd.sh build_and_push
         env:
-          GIT_COMMIT_SHA: ${{ github.sha }} # Pass commit SHA to the script
-          # You'll need to add secrets to your GitHub repository for these if your script needs them
+          GIT_COMMIT_SHA: ${{ github.sha }}
+          # Uncomment and set these if your build requires them
           # GIT_PAT: ${{ secrets.GIT_PAT }}
           # MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
-          # etc. for all secrets needed by docker-compose build or the script itself.

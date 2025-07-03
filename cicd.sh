@@ -3,10 +3,12 @@
 set -eo pipefail # Exit on error, treat unset variables as an error, and propagate exit status through pipes
 
 # Default values - can be overridden by environment variables
-REGISTRY="${REGISTRY:-ghcr.io}" # Default to GitHub Container Registry
+REGISTRY="${REGISTRY:-ghcr.io}"                         # Default to GitHub Container Registry
 IMAGE_NAME_PREFIX="${IMAGE_NAME_PREFIX:-${GITHUB_REPOSITORY_OWNER}}" # Default to GitHub repo owner
-GIT_COMMIT_SHA="${GIT_COMMIT_SHA:-latest}" # Default to 'latest' if not provided
+IMAGE_NAME_PREFIX="${IMAGE_NAME_PREFIX%/}"              # ✅ Remove trailing slash if present
+GIT_COMMIT_SHA="${GIT_COMMIT_SHA:-latest}"              # Default to 'latest' if not provided
 COMPOSE_FILE_LOCAL="deploy/docker-compose.yml"
+
 # COMPOSE_FILE_CICD="deploy/docker-compose-cicd.yml" # Will be used later
 
 # List of services to build. This should align with your docker-compose files
