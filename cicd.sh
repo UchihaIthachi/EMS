@@ -59,7 +59,7 @@ build_image() {
   fi
 
   if docker buildx build \
-      --platform linux/amd64 \
+      --platform linux/amd64,linux/arm64 \
       -t "${image_tag}" \
       -t "${latest_tag}" \
       -f "${dockerfile_path}" \
