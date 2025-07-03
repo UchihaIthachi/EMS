@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: employee-service
-          image: harshana2020/employee-service:latest
+          image: ghcr.io/uchihaithachi/employee-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8082

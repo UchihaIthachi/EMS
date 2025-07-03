@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: department-service
-          image: harshana2020/department-service:latest
+          image: ghcr.io/uchihaithachi/department-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8081
