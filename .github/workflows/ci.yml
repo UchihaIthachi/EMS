@@ -21,6 +21,31 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build all services with Maven
+        run: |
+          for dir in service-registry config-server api-gateway department-service employee-service; do
+            if [ -f "$dir/pom.xml" ]; then
+              echo "📦 Building $dir"
+              (cd "$dir" && mvn clean package -DskipTests)
+            else
+              echo "⚠️  Skipping $dir (no pom.xml found)"
+            fi
+          done
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
 
@@ -40,6 +65,6 @@ jobs:
           ./cicd.sh build_and_push
         env:
           GIT_COMMIT_SHA: ${{ github.sha }}
-          # Uncomment and set these if your build requires them
+          # Optional secrets if needed for private repos or database access
           # GIT_PAT: ${{ secrets.GIT_PAT }}
           # MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
