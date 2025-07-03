@@ -46,7 +46,7 @@ spec:
             periodSeconds: 10
           resources:
             requests:
-              cpu: "100m"
+              cpu: "75m"  # Was 100m
               memory: "256Mi"
             limits:
               cpu: "500m"

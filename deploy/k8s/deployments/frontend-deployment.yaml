@@ -35,7 +35,7 @@ spec:
             periodSeconds: 5
           resources:
             requests:
-              cpu: "100m"
+              cpu: "75m"  # Was 100m
               memory: "128Mi" # Adjusted as frontend might be lower
             limits:
               cpu: "500m"
