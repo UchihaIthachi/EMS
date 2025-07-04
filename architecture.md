@@ -6,101 +6,65 @@ This document provides an in-depth overview of the Employee Management System (E
 
 This diagram illustrates the logical architecture of the EMS, showing the key microservices and their interactions.
 
-```go
-diagram {
-  graph_attr = {
-    label = "EMS - Logical System Architecture"
-    labelloc = "t"
-    fontsize = "20"
-    layout = "dot"
-    rankdir = "LR" // Left-to-Right for service flow
-    splines = "spline"
-  }
+```mermaid
+%%{ init: { "theme": "default", "flowchart": { "curve": "basis", "rankSpacing": 50, "nodeSpacing": 40 } } }%%
+flowchart LR
+  %% Clients
+  user["Client (e.g., Browser)"]
 
-  node_attr = {
-    style = "filled"
-    shape = "component" // Using component shape for services
-    fontname = "Arial"
-    fillcolor = "skyblue"
-  }
+  %% Gateway
+  api_gateway["API Gateway (Spring Cloud Gateway)"]
 
-  edge_attr = {
-    fontname = "Arial"
-    fontsize = "10"
-  }
+  %% Core Microservices
+  subgraph "Core Microservices"
+    employee_service["Employee Service"]
+    department_service["Department Service"]
+  end
 
-  subgraph("cluster_clients") {
-    graph_attr = {label="", color="white"} // Invisible subgraph for layout
-    user [label="Client\n(e.g., Browser via Frontend)", shape="actor", fillcolor="none"]
-  }
+  %% Supporting Infrastructure
+  subgraph "Supporting Infrastructure Services"
+    config_server["Config Server"]
+    service_registry["Service Registry"]
+    message_broker["Message Broker (RabbitMQ)"]
+    db_employee["Employee DB (MySQL)"]
+    db_department["Department DB (MySQL)"]
+  end
 
-  subgraph("cluster_gateway_layer") {
-    graph_attr = {label="", color="white"}
-    api_gateway [label="API Gateway\n(Spring Cloud Gateway)", fillcolor="lightgreen"]
-  }
+  %% Observability
+  subgraph "Observability"
+    tracing_server["Distributed Tracing (Zipkin)"]
+  end
 
-  subgraph("cluster_core_services") {
-    graph_attr = {label="Core Microservices", style="dotted", color="grey"}
-    employee_service [label="Employee Service"]
-    department_service [label="Department Service"]
-  }
+  %% Main flow
+  user -->|HTTP/S Requests| api_gateway
+  api_gateway -->|REST Call| employee_service
+  api_gateway -->|REST Call| department_service
 
-  subgraph("cluster_supporting_infra") {
-    graph_attr = {label="Supporting Infrastructure Services", style="dotted", color="grey"}
-    config_server [label="Config Server\n(Spring Cloud Config)", fillcolor="lightcoral"]
-    service_registry [label="Service Registry\n(Eureka for Local / K8s DNS)", fillcolor="lightcoral"]
-    message_broker [label="Message Broker\n(RabbitMQ)", shape="queue", fillcolor="lightgoldenrodyellow"]
+  employee_service -->|JDBC| db_employee
+  department_service -->|JDBC| db_department
 
-    db_employee [label="Employee DB\n(MySQL)", shape="cylinder", fillcolor="lightgrey"]
-    db_department [label="Department DB\n(MySQL)", shape="cylinder", fillcolor="lightgrey"]
-  }
+  employee_service -.->|Feign REST| department_service
 
-  subgraph("cluster_observability") {
-    graph_attr = {label="Observability", style="dotted", color="grey"}
-    tracing_server [label="Distributed Tracing\n(Zipkin)", fillcolor="thistle"]
-    // Monitoring (Prometheus/Grafana) and Logging (ELK) are also part of observability
-    // but omitted here for diagram clarity, as they monitor all services.
-  }
+  %% Async
+  employee_service -.->|Event: EmployeeUpdated| message_broker
+  department_service -.->|Event: DepartmentCreated| message_broker
 
-  // Connections
-  user -> api_gateway [label="HTTP/S Requests"]
+  %% Config
+  api_gateway -.->|Config Fetch| config_server
+  employee_service -.->|Config Fetch| config_server
+  department_service -.->|Config Fetch| config_server
 
-  api_gateway -> employee_service [label="REST Calls"]
-  api_gateway -> department_service [label="REST Calls"]
+  %% Discovery
+  api_gateway -.->|Discovery| service_registry
+  employee_service -.->|Discovery| service_registry
+  department_service -.->|Discovery| service_registry
+  config_server -.->|Discovery| service_registry
 
-  employee_service -> db_employee [label="JDBC"]
-  department_service -> db_department [label="JDBC"]
+  %% Tracing
+  api_gateway -.->|Trace Spans| tracing_server
+  employee_service -.->|Trace Spans| tracing_server
+  department_service -.->|Trace Spans| tracing_server
 
-  employee_service -> department_service [label="Feign Client (REST)", style="dashed"] // Example of inter-service sync
-
-  // Asynchronous communication
-  employee_service -> message_broker [label="Events (e.g., EmployeeUpdated)", style="dashed"]
-  department_service -> message_broker [label="Events (e.g., DepartmentCreated)", style="dashed"]
-  // Other services could consume events from message_broker
-
-  // Configuration and Discovery
-  api_gateway -> config_server [label="Gets Config", style="dotted", color="blue"]
-  employee_service -> config_server [label="Gets Config", style="dotted", color="blue"]
-  department_service -> config_server [label="Gets Config", style="dotted", color="blue"]
-
-  // Service discovery: In K8s, this is implicit via K8s DNS.
-  // For local Eureka setup:
-  api_gateway -> service_registry [label="Discovery (Local)", style="dotted", color="darkgreen", constraint=false]
-  employee_service -> service_registry [label="Register/Discover (Local)", style="dotted", color="darkgreen", constraint=false]
-  department_service -> service_registry [label="Register/Discover (Local)", style="dotted", color="darkgreen", constraint=false]
-  config_server -> service_registry [label="Register/Discover (Local)", style="dotted", color="darkgreen", constraint=false]
-
-  // Tracing
-  api_gateway -> tracing_server [label="Trace Spans", style="dotted", color="purple", constraint=false]
-  employee_service -> tracing_server [label="Trace Spans", style="dotted", color="purple", constraint=false]
-  department_service -> tracing_server [label="Trace Spans", style="dotted", color="purple", constraint=false]
-
-  // Grouping for clarity
-  {rank=same; user; api_gateway}
-  {rank=same; employee_service; department_service}
-  {rank=same; config_server; service_registry; message_broker; tracing_server}
-  {rank=same; db_employee; db_department}
-}
 ```
 
 ## Microservices Overview
