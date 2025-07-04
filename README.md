@@ -1,224 +1,117 @@
-Here's the updated README with additional design patterns included:
+# Employee Management System (EMS)
+
+This repository contains the Employee Management System (EMS), a comprehensive application demonstrating a modern microservices architecture. It includes backend services built with Spring Boot and a frontend application built with React/TypeScript.
+
+## Project Overview
+
+The Employee Management System (EMS) is designed to manage employee and department data through a set of interconnected microservices. It showcases best practices in distributed systems, including service discovery, centralized configuration, API gateway patterns, fault tolerance, and containerization for local and Kubernetes deployments.
+
+## Features
+
+*   **Microservices Architecture**: Modular design with independent services for employees, departments, configuration, service discovery, and API gateway.
+*   **Employee Management**: CRUD operations for employee records.
+*   **Department Management**: CRUD operations for department records.
+*   **Centralized Configuration**: Using Spring Cloud Config Server to manage externalized configurations for all microservices.
+*   **Service Discovery**: Employs Netflix Eureka for local deployments and Kubernetes DNS for cluster deployments.
+*   **API Gateway**: Single entry point for all client requests, handled by Spring Cloud Gateway, providing routing and potential for cross-cutting concerns.
+*   **Inter-Service Communication**: Synchronous communication using Feign Clients and asynchronous communication via RabbitMQ.
+*   **Distributed Tracing**: Integrated with Zipkin and Sleuth for monitoring and debugging requests across services.
+*   **Fault Tolerance**: Demonstrates Circuit Breaker patterns (Resilience4j) for improved system resilience.
+*   **Containerized Deployment**: Dockerized services for easy local setup using Docker Compose and production-like deployments on Kubernetes.
+*   **CI/CD Ready**: Includes a Jenkinsfile for building, testing, and deploying the application.
+*   **Comprehensive Logging & Monitoring**: Support for ELK Stack (Elasticsearch, Logstash, Kibana) for logging and Prometheus/Grafana for metrics and monitoring.
+*   **Reactive Frontend**: A user interface built with React, TypeScript, and Vite.
+
+## Technologies Used
+
+### Backend
+*   Java 17+
+*   Spring Boot 3.x
+*   Spring Cloud
+*   Spring Data JPA (Hibernate)
+*   Spring Cloud Config Server
+*   Spring Cloud Gateway
+*   Spring Cloud OpenFeign
+*   Netflix Eureka (for local discovery)
+*   Resilience4j (Circuit Breaker)
+*   Spring Sleuth & Zipkin (Distributed Tracing)
+*   RabbitMQ (Message Broker)
+*   MySQL (Databases)
+
+### Frontend
+*   React
+*   TypeScript
+*   Vite
+*   Nginx (for serving frontend static files)
+
+### DevOps & Deployment
+*   Docker & Docker Compose
+*   Kubernetes (OKE - Oracle Kubernetes Engine targeted)
+*   Jenkins (CI/CD)
+*   Nexus (Artifact Repository)
+*   GitHub Container Registry (GHCR) (intended for K8s images)
+*   ArgoCD (for GitOps deployment to Kubernetes)
+*   Prometheus & Grafana (Monitoring)
+*   ELK Stack (Logging)
+
+## Folder Structure
+
+```
+.
+├── api-gateway/        # Spring Cloud API Gateway service
+├── config-server/      # Spring Cloud Config Server
+├── department-service/ # Department microservice
+├── employee-service/   # Employee microservice
+├── service-registry/   # Eureka Service Registry (for local)
+├── frontend/           # React/TypeScript frontend application
+├── deploy/             # Deployment scripts and configurations
+│   ├── .env.Example    # Example environment variables for Docker Compose
+│   ├── docker-compose.yml # Main Docker Compose file for local deployment
+│   ├── docker-compose.dev.yml # Docker Compose override for local JAR development
+│   ├── k8s/            # Kubernetes manifests
+│   │   ├── base/
+│   │   ├── configmaps/
+│   │   ├── deployments/
+│   │   ├── ... (other Kubernetes resources)
+│   ├── argo/           # ArgoCD application definition
+│   └── init/           # Database initialization scripts
+├── .github/            # GitHub specific files (e.g., workflows)
+├── Jenkinsfile         # CI/CD pipeline definition for Jenkins
+├── cicd.sh             # Helper script for CI/CD tasks
+├── k8s-deploy.sh       # Helper script for Kubernetes deployments
+├── local-dev.sh        # Helper script for local development loop
+└── README.md           # This file
+```
+
+## Getting Started
+
+This project can be run locally using Docker Compose or deployed to a Kubernetes cluster.
+
+### Local Deployment Summary
+For a quick local setup:
+1.  Ensure Docker and Docker Compose are installed.
+2.  Clone the repository.
+3.  Navigate to the `deploy/` directory and create a `.env` file from `.env.Example`, updating necessary credentials (like `GIT_PAT` if your config repo is private).
+4.  Run `docker-compose up -d` from the `deploy/` directory.
+
+For detailed instructions on local deployment, including prerequisites, environment setup, running services with different profiles (e.g., logging, monitoring), and troubleshooting, please refer to:
+*   **[Local Deployment Guide (local-deploy.md)](local-deploy.md)**
+
+### Kubernetes Deployment Summary
+The application is designed to be deployed on Kubernetes (specifically targeting Oracle Kubernetes Engine - OKE). This involves building Docker images, pushing them to a container registry (like GHCR), and applying Kubernetes manifests.
+
+For comprehensive steps on Kubernetes deployment, CI/CD flow, GitHub Container Registry usage, and ArgoCD integration, please see:
+*   **[Kubernetes Deployment Guide (k8s-deploy.md)](k8s-deploy.md)**
+
+## Documentation Links
+
+For more detailed information on specific aspects of this project, please refer to the following documents:
+
+*   **[API Documentation (API_DOC.md)](API_DOC.md)**: Detailed information about the available API endpoints.
+*   **[Local Deployment Guide (local-deploy.md)](local-deploy.md)**: Step-by-step instructions for running the application locally using Docker Compose.
+*   **[Kubernetes Deployment Guide (k8s-deploy.md)](k8s-deploy.md)**: Comprehensive guide for deploying the application to Kubernetes.
+*   **[Kubernetes Configuration Details (kubernetes.md)](kubernetes.md)**: OKE-specific configurations, node architecture, resource tuning, and best practices for Kubernetes.
+*   **[System Architecture (architecture.md)](architecture.md)**: In-depth explanation of the system architecture, microservice interactions, design patterns, and best practices.
 
 ---
-
-# **Employee Management System (EMS) - Backend**
-
-This repository contains the backend implementation of an **Employee Management System (EMS)**. The project leverages **Spring Boot** in a modern microservices architecture, demonstrating advanced Spring Cloud capabilities, distributed systems design, and inter-service communication.
-
----
-
-## **Table of Contents**
-
-1. [Project Highlights](#project-highlights)
-2. [System Architecture](#system-architecture)
-3. [Design Patterns](#design-patterns)
-4. [Microservices Overview](#microservices-overview)
-5. [API Documentation](#api-documentation)
-6. [Setup Instructions](#setup-instructions)
-7. [Future Enhancements](#future-enhancements)
-8. [Contributors](#contributors)
-
----
-
-## **Project Highlights**
-
-### **Technology Stack**
-
-- **Backend**: Spring Boot, Spring Cloud, Hibernate, MySQL, RabbitMQ, Resilience4j, Sleuth, Zipkin, Feign Client.
-- **Tools**: Docker, Postman for API testing.
-- **Service Registry**: Netflix Eureka for service discovery.
-- **Configuration Management**: Spring Cloud Config Server for centralized configuration.
-- **Circuit Breaker**: Implemented using Resilience4j and Spring Cloud Bus.
-
----
-
-## **System Architecture**
-
-The project adopts a **microservices-based approach** with a modular and layered architecture.
-
-### **Layered Architecture**
-
-Currently, the backend exposes RESTful APIs accessible via **Postman**. A **front-end interface** using **Angular** is planned for future development. The backend architecture includes the following key components:
-
-1. **Service Registry**: Centralized discovery of microservices.
-2. **API Gateway**: Handles routing, authentication, and load balancing.
-3. **Distributed Tracing**: Sleuth and Zipkin enable seamless debugging and monitoring of requests.
-4. **Asynchronous Communication**: RabbitMQ facilitates event-driven messaging.
-
----
-
-## **Design Patterns**
-
-This project employs several key design patterns to ensure maintainability, scalability, and performance:
-
-### **1. Repository Pattern**
-
-The data access layer is abstracted using repositories to separate data access logic from business logic.
-
-### **2. Data Transfer Object (DTO) Pattern**
-
-DTOs encapsulate only the required fields for communication, reducing the payload size and improving performance.
-
-### **3. Gateway Pattern**
-
-An **API Gateway** is used to handle client requests and route them to the appropriate microservices. This pattern also centralizes:
-
-- **Authentication**
-- **Load balancing**
-- **Routing logic**
-
-### **4. Database per Service Pattern**
-
-Each microservice has its own dedicated database to maintain:
-
-- Loose coupling
-- Data autonomy
-
-### **5. Sidecar Pattern**
-
-Dedicated **sidecar microservices** are attached for auxiliary tasks like:
-
-- Monitoring
-- Logging
-- Authentication
-
-### **6. Service Registry Pattern**
-
-A **service registry** is implemented to:
-
-- Automatically locate and register services
-- Enable dynamic discovery for seamless inter-service communication
-
-### **7. Circuit Breaker Pattern**
-
-Resilience4j provides a **circuit breaker** to prevent cascading failures by:
-
-- Temporarily stopping requests to failing services
-- Providing fallback mechanisms
-
----
-
-## **Microservices Overview**
-
-1. **Service Registry**:
-
-   - **Netflix Eureka** dynamically registers and discovers microservices.
-   - URL: [http://localhost:8761](http://localhost:8761)
-
-2. **API Gateway**:
-
-   - Centralized entry point for client requests.
-   - URL: [http://localhost:8080](http://localhost:8080)
-
-3. **Config Server**:
-
-   - Centralized configuration stored in a Git repository.
-   - Repository: [Config Repo](https://github.com/dulaaann/CONFIG-REPO.git)
-   - Port: `8888`
-
-4. **Employee Service**:
-
-   - CRUD operations for employee management.
-   - Integrates Resilience4j for fault tolerance.
-
-5. **Department Service**:
-
-   - Handles department-related operations.
-   - Communicates with Employee Service via Feign Clients.
-
-6. **RabbitMQ**:
-
-   - Enables asynchronous communication for event-driven microservices.
-   - Management Console: [http://localhost:15672](http://localhost:15672)
-
-7. **Zipkin**:
-   - Tracks distributed requests for monitoring and debugging.
-   - Dashboard: [http://localhost:9411](http://localhost:9411)
-
----
-
-## **API Documentation**
-
-### **Employee Service**
-
-- **GET /employees/{id}**  
-  Retrieves an employee's details by ID.
-- **POST /employees**  
-  Adds a new employee record.
-- **PUT /employees/{id}**  
-  Updates an employee record.
-- **DELETE /employees/{id}**  
-  Deletes an employee record.
-
-### **Department Service**
-
-- **GET /departments/{id}**  
-  Retrieves a department by ID.
-- **POST /departments**  
-  Adds a new department record.
-
----
-
-## **Setup Instructions**
-
-### **Prerequisites**
-
-- Docker
-- JDK 11+
-- Maven
-- MySQL
-
-### **Steps to Run**
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/your-repo.git
-   cd your-repo
-   ```
-
-2. Build the project:
-
-   ```bash
-   mvn clean package
-   ```
-
-3. Start services with Docker Compose:
-
-   ```bash
-   docker-compose up --build
-   ```
-
-4. Access the services:
-   - **Service Registry**: [http://localhost:8761](http://localhost:8761)
-   - **API Gateway**: [http://localhost:8080](http://localhost:8080)
-   - **Config Server**: [http://localhost:8888](http://localhost:8888)
-
----
-
-## **Future Enhancements**
-
-- Integrate Redis for caching.
-- Add centralized logging with the ELK stack.
-- Implement Kubernetes for service scaling.
-- Enhance API security using OAuth2.
-- Develop a front-end interface using Angular.
-
----
-
-## **Contributors**
-
-**Harshana Lakshara**
-
-- **Role**: Designer and Developer
-- **Contact**: harshana@example.com
-- **LinkedIn**: [Profile](https://linkedin.com/in/harshana)
-
----
-
-## **License**
-
-This project is licensed under the MIT License.
-
----
+*This README was consolidated from multiple project documentation files.*
