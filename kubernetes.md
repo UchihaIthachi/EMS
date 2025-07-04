@@ -118,140 +118,100 @@ Autoscaling helps manage fluctuating loads effectively.
 
 This diagram illustrates a conceptual layout of the EMS application on Oracle Kubernetes Engine (OKE).
 
-```go
-diagram {
-  graph_attr = {
-    label = "EMS on OKE - Conceptual Infrastructure"
-    labelloc = "t"
-    fontsize = "20"
-    layout = "dot"
-    rankdir = "TB"
-    splines = "ortho"
-  }
+```mermaid
+%%{ init: { "theme": "default", "flowchart": { "curve": "linear", "nodeSpacing": 30, "rankSpacing": 60 } } }%%
+flowchart TB
+  %% Titles and groupings
+  subgraph "User Traffic"
+    direction TB
+    user[("End User / Client")]
+  end
 
-  node_attr = {
-    style = "filled"
-    shape = "box"
-    fontname = "Arial"
-  }
+  subgraph "OCI / External Services"
+    direction TB
+    ghcr["GitHub Container Registry (GHCR)"]
+    config_repo["Git Config Repo (e.g., GitHub)"]
+    oci_lb(["OCI Load Balancer"])
+  end
 
-  edge_attr = {
-    fontname = "Arial"
-    fontsize = "10"
-  }
+  subgraph "Oracle Kubernetes Engine (OKE) Cluster"
+    direction TB
 
-  subgraph("cluster_user_traffic") {
-    graph_attr = { label = "User Traffic", style="dotted", color="grey"}
-    user [label="End User / Client", shape="actor"]
-  }
+    subgraph "Control Plane (Managed by OKE)"
+      k8s_api(["Kubernetes API Server"])
+      etcd[("etcd")]
+    end
 
-  subgraph("cluster_oci_external") {
-    graph_attr = { label = "OCI / External Services", style="dotted", color="grey"}
-    ghcr [label="GitHub Container Registry (GHCR)", shape="cylinder", fillcolor="lightgrey"]
-    config_repo [label="Git Config Repo\n(e.g., GitHub)", shape="cylinder", fillcolor="lightgrey"]
-    oci_lb [label="OCI Load Balancer", shape="cloud", fillcolor="lightblue"]
-  }
+    subgraph "App Node Pool (e.g., VM.Standard.E4.Flex)"
+      ingress_controller(["Ingress Controller (e.g., Nginx)"])
 
-  subgraph("cluster_oke") {
-    graph_attr = {
-      label = "Oracle Kubernetes Engine (OKE) Cluster"
-      bgcolor = "lightyellow"
-      style = "filled"
-      color = "orange"
-    }
+      subgraph "ems-app Namespace"
+        frontend_pods["Frontend Pods (Deployment)"]
+        apigw_pods["API Gateway Pods (Deployment)"]
+        config_server_pods["Config Server Pods (Deployment)"]
+        service_registry_pods["Service Registry Pods (Deployment - Eureka disabled)"]
+        dept_svc_pods["Department Svc Pods (Deployment)"]
+        emp_svc_pods["Employee Svc Pods (Deployment)"]
 
-    k8s_api [label="Kubernetes API Server", shape="oval", fillcolor="orange"]
-    etcd [label="etcd", shape="database", fillcolor="orange"]
-    k8s_api -> etcd [style="invis"] // Layout hint
+        mysql_dept_sts["MySQL Dept Pods (StatefulSet)"]
+        mysql_emp_sts["MySQL Emp Pods (StatefulSet)"]
+        rabbitmq_sts["RabbitMQ Pods (StatefulSet)"]
 
-    subgraph("cluster_control_plane") {
-        graph_attr = {label = "Control Plane (Managed by OKE)", style="dashed", color="darkorange"}
-        k8s_api
-        etcd
-    }
+        pvc_mysql_dept["PVC (Dept DB Data)"]
+        pvc_mysql_emp["PVC (Emp DB Data)"]
+        pvc_rabbitmq["PVC (RabbitMQ Data)"]
+      end
+    end
 
-    subgraph("cluster_node_pool_app") {
-      graph_attr = { label = "App Node Pool (e.g., VM.Standard.E4.Flex)" }
-      node_app_1 [label="Worker Node 1"]
-      node_app_2 [label="Worker Node 2"]
+    subgraph "Infra Node Pool (Optional, for monitoring/logging)"
+      node_infra_1["Worker Node (Infra)"]
 
-      ingress_controller [label="Ingress Controller\n(e.g., Nginx)", shape="component", fillcolor="lightgreen"]
+      subgraph "monitoring Namespace"
+        prometheus["Prometheus Pods"]
+        grafana["Grafana Pods"]
+      end
 
-      subgraph("cluster_ns_ems_app") {
-        graph_attr = { label = "ems-app Namespace", bgcolor="aliceblue"}
+      subgraph "logging Namespace"
+        elasticsearch_sts["Elasticsearch Pods (StatefulSet)"]
+        logstash_pods["Logstash Pods"]
+        kibana_pods["Kibana Pods"]
+      end
+    end
+  end
 
-        frontend_pods [label="Frontend Pods\n(Deployment)", shape="cds", fillcolor="skyblue"]
-        apigw_pods [label="API Gateway Pods\n(Deployment)", shape="cds", fillcolor="skyblue"]
-        config_server_pods [label="Config Server Pods\n(Deployment)", shape="cds", fillcolor="skyblue"]
-        service_registry_pods [label="Service Registry Pods\n(Deployment - Eureka disabled)", shape="cds", fillcolor="skyblue"]
-        dept_svc_pods [label="Department Svc Pods\n(Deployment)", shape="cds", fillcolor="skyblue"]
-        emp_svc_pods [label="Employee Svc Pods\n(Deployment)", shape="cds", fillcolor="skyblue"]
+  %% Connections
+  user -->|HTTPS| oci_lb
+  oci_lb -->|routes traffic to| ingress_controller
+  ingress_controller -->|path: /| frontend_pods
+  ingress_controller -->|path: /api| apigw_pods
 
-        mysql_dept_sts [label="MySQL Dept Pods\n(StatefulSet)", shape="box3d", fillcolor="lightcoral"]
-        mysql_emp_sts [label="MySQL Emp Pods\n(StatefulSet)", shape="box3d", fillcolor="lightcoral"]
-        rabbitmq_sts [label="RabbitMQ Pods\n(StatefulSet)", shape="box3d", fillcolor="lightgoldenrodyellow"]
+  %% Pod internal connections
+  apigw_pods -->|routes to| dept_svc_pods
+  apigw_pods -->|routes to| emp_svc_pods
 
-        pvc_mysql_dept [label="PVC (Dept DB Data)", shape="cylinder", fillcolor="grey"]
-        pvc_mysql_emp [label="PVC (Emp DB Data)", shape="cylinder", fillcolor="grey"]
-        pvc_rabbitmq [label="PVC (RabbitMQ Data)", shape="cylinder", fillcolor="grey"]
+  dept_svc_pods -->|uses| mysql_dept_sts
+  emp_svc_pods -->|uses| mysql_emp_sts
 
-        mysql_dept_sts -> pvc_mysql_dept [label="uses"]
-        mysql_emp_sts -> pvc_mysql_emp [label="uses"]
-        rabbitmq_sts -> pvc_rabbitmq [label="uses"]
+  dept_svc_pods -->|pub/sub| rabbitmq_sts
+  emp_svc_pods -->|pub/sub| rabbitmq_sts
 
-        apigw_pods -> dept_svc_pods [label="routes to"]
-        apigw_pods -> emp_svc_pods [label="routes to"]
-        dept_svc_pods -> mysql_dept_sts [label="uses"]
-        emp_svc_pods -> mysql_emp_sts [label="uses"]
-        dept_svc_pods -> rabbitmq_sts [label="pub/sub"]
-        emp_svc_pods -> rabbitmq_sts [label="pub/sub"]
+  mysql_dept_sts --> pvc_mysql_dept
+  mysql_emp_sts --> pvc_mysql_emp
+  rabbitmq_sts --> pvc_rabbitmq
 
-        config_server_pods -> config_repo [label="reads config from"]
+  %% Config connections
+  config_server_pods --> config_repo
+  apigw_pods -.->|gets config| config_server_pods
+  dept_svc_pods -.->|gets config| config_server_pods
+  emp_svc_pods -.->|gets config| config_server_pods
 
-        {rank=same; frontend_pods; apigw_pods; service_registry_pods; config_server_pods; dept_svc_pods; emp_svc_pods} // Layout hint
-      }
-      node_app_1 -> ingress_controller [style="invis"] // for layout
-      node_app_1 -> frontend_pods [style="invis"] // for layout
-    }
+  %% Image pulls (conceptual)
+  ghcr -.->|pulls image| frontend_pods
+  ghcr -.->|pulls image| apigw_pods
 
-    subgraph("cluster_node_pool_infra") {
-        graph_attr = {label = "Infra Node Pool (Optional, for monitoring/logging)"}
-        node_infra_1 [label="Worker Node (Infra)"]
+  %% Monitoring stack
+  prometheus -->|datasource| grafana
+  logstash_pods --> elasticsearch_sts
+  kibana_pods --> elasticsearch_sts
 
-        subgraph("cluster_ns_monitoring") {
-            graph_attr = {label="monitoring Namespace", bgcolor="lightgrey"}
-            prometheus [label="Prometheus Pods", shape="cds", fillcolor="whitesmoke"]
-            grafana [label="Grafana Pods", shape="cds", fillcolor="whitesmoke"]
-            prometheus -> grafana [label="datasource"]
-        }
-        subgraph("cluster_ns_logging") {
-            graph_attr = {label="logging Namespace", bgcolor="lightgrey"}
-            elasticsearch_sts [label="Elasticsearch Pods\n(StatefulSet)", shape="box3d", fillcolor="thistle"]
-            logstash_pods [label="Logstash Pods", shape="cds", fillcolor="thistle"]
-            kibana_pods [label="Kibana Pods", shape="cds", fillcolor="thistle"]
-            logstash_pods -> elasticsearch_sts
-            kibana_pods -> elasticsearch_sts
-        }
-    }
-  }
-
-  user -> oci_lb [label="HTTPS"]
-  oci_lb -> ingress_controller [label="routes traffic to"]
-  ingress_controller -> frontend_pods [label="path: /"]
-  ingress_controller -> apigw_pods [label="path: /api"]
-
-  // Pods pull images from GHCR (conceptual, not direct data flow in diagram)
-  frontend_pods -> ghcr [style="dotted", label="pulls image", dir="back", constraint=false]
-  apigw_pods -> ghcr [style="dotted", label="pulls image", dir="back", constraint=false]
-  // ... other pods also pull from GHCR
-
-  // Services interact with Config Server (conceptual)
-  apigw_pods -> config_server_pods [label="gets config", style="dashed", color="blue", constraint=false]
-  dept_svc_pods -> config_server_pods [label="gets config", style="dashed", color="blue", constraint=false]
-  emp_svc_pods -> config_server_pods [label="gets config", style="dashed", color="blue", constraint=false]
-
-  // Services register with Service Registry (local only, disabled in K8s)
-  // apigw_pods -> service_registry_pods [label="registers (local only)", style="dotted", color="grey", constraint=false]
-
-}
 ```
