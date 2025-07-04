@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -10,13 +11,15 @@ import {
   Paper,
   Snackbar,
   Alert,
-  AppBar,
-  Toolbar,
 } from '@mui/material';
-import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 
 import EmployeeForm from './components/EmployeeForm';
 import EmployeeDetails from './components/EmployeeDetails';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import LandingPage from './components/LandingPage';
+import SaveDepartmentPage from './components/SaveDepartmentPage'; // Added
+import FindDepartmentPage from './components/FindDepartmentPage'; // Added
 import { getEmployeeMessage, getDepartmentMessage } from './api';
 import { useToast } from './hooks/useToast';
 
@@ -48,42 +51,53 @@ export default function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      
-      <AppBar position="static" color="primary" elevation={1}>
-        <Toolbar>
-          <PeopleAltIcon sx={{ mr: 1 }} />
-          <Typography variant="h6" component="div">
-            Employee Service Portal
-          </Typography>
-        </Toolbar>
-      </AppBar>
-
-      <Container maxWidth="md" sx={{ mt: 5, mb: 5 }}>
-        <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
-          <Typography variant="h6" color="primary" gutterBottom>
-            ➕ Create Employee
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-          <EmployeeForm toast={toast} />
-        </Paper>
-
-        <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
-          <Typography variant="h6" color="primary" gutterBottom>
-            🔍 Lookup Employee by ID
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-          <EmployeeDetails toast={toast} />
-        </Paper>
-
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography variant="h6" color="primary" gutterBottom>
-            ℹ️ Service Messages
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-          <Typography sx={{ mt: 1 }}><strong>Employee:</strong> {empMsg}</Typography>
-          <Typography><strong>Department:</strong> {deptMsg}</Typography>
-        </Paper>
-
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <Navbar />
+        <Container component="main" maxWidth="md" sx={{ mt: 5, mb: 5, flexGrow: 1 }}>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route
+              path="/create-employee"
+              element={
+                <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
+                  <Typography variant="h6" color="primary" gutterBottom>
+                    ➕ Create Employee
+                  </Typography>
+                  <Divider sx={{ mb: 2 }} />
+                  <EmployeeForm toast={toast} />
+                </Paper>
+              }
+            />
+            <Route
+              path="/employee-details"
+              element={
+                <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
+                  <Typography variant="h6" color="primary" gutterBottom>
+                    🔍 Lookup Employee by ID
+                  </Typography>
+                  <Divider sx={{ mb: 2 }} />
+                  <EmployeeDetails toast={toast} />
+                </Paper>
+              }
+            />
+            <Route path="/create-department" element={<SaveDepartmentPage />} />
+            <Route path="/department-details" element={<FindDepartmentPage />} />
+            <Route
+              path="/messages"
+              element={
+                <Paper elevation={3} sx={{ p: 4 }}>
+                  <Typography variant="h6" color="primary" gutterBottom>
+                    ℹ️ Service Messages
+                  </Typography>
+                  <Divider sx={{ mb: 2 }} />
+                  <Typography sx={{ mt: 1 }}><strong>Employee:</strong> {empMsg}</Typography>
+                  <Typography><strong>Department:</strong> {deptMsg}</Typography>
+                </Paper>
+              }
+            />
+          </Routes>
+        </Container>
+        <Footer />
         <Snackbar
           open={toast.open}
           autoHideDuration={3000}
@@ -94,7 +108,7 @@ export default function App() {
             {toast.message}
           </Alert>
         </Snackbar>
-      </Container>
+      </Box>
     </ThemeProvider>
   );
 }
