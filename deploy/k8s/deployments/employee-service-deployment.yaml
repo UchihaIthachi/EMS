@@ -28,6 +28,8 @@ spec:
               value: "8082"
             - name: SPRING_CONFIG_IMPORT
               value: "optional:configserver:http://config-server:8888/"
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: "http://service-registry:8761/eureka"
             - name: DATABASE_URL
               value: "jdbc:mysql://mysql-employee:3306/employee_db" # Placeholder for EMPLOYEE_DB, assuming 'employee_db'
             - name: DATABASE_USERNAME
