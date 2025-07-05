@@ -61,17 +61,35 @@ spec:
               value: "org.hibernate.dialect.MySQL8Dialect"
             - name: HIBERNATE_DDL_AUTO
               value: "update"
+            # Fail Fast for Config Server
+            - name: SPRING_CLOUD_CONFIG_FAIL_FAST
+              value: "true"
+            - name: SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS
+              value: "6"
+            - name: SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL
+              value: "2000"
+            - name: SPRING_CLOUD_CONFIG_RETRY_MULTIPLIER
+              value: "1.1"
+            - name: SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL
+              value: "4000"
           livenessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/liveness # Updated path
               port: 8081
             initialDelaySeconds: 70 # Longer delay for services with DB connections
             periodSeconds: 15
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/readiness # Updated path
               port: 8081
             initialDelaySeconds: 40 # Longer delay
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness # Use liveness endpoint for startup
+              port: 8081
+            initialDelaySeconds: 20
+            failureThreshold: 30 # (30 failures * 10s period) = 300s = 5 minutes
             periodSeconds: 10
           resources:
             requests:

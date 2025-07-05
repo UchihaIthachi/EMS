@@ -34,15 +34,22 @@ spec:
               value: "kubernetes"
           livenessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/liveness # Updated path
               port: 8761
             initialDelaySeconds: 60 # Adjusted for typical Spring Boot app startup
             periodSeconds: 15
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/readiness # Updated path
               port: 8761
             initialDelaySeconds: 30 # Adjusted
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness # Use liveness endpoint for startup
+              port: 8761
+            initialDelaySeconds: 15
+            failureThreshold: 18 # (18 failures * 10s period) = 180s = 3 minutes
             periodSeconds: 10
           resources:
             requests:

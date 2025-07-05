@@ -34,17 +34,35 @@ spec:
               value: "http://zipkin:9411"
             - name: SPRING_PROFILES_ACTIVE
               value: "kubernetes"
+            # Fail Fast for Config Server
+            - name: SPRING_CLOUD_CONFIG_FAIL_FAST
+              value: "true"
+            - name: SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS
+              value: "6" # Total attempts: 1 initial + 6 retries = 7
+            - name: SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL
+              value: "2000" # 2 seconds
+            - name: SPRING_CLOUD_CONFIG_RETRY_MULTIPLIER
+              value: "1.1"
+            - name: SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL # Max time between retries
+              value: "4000" # 4 seconds
           livenessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/liveness # Updated path
               port: 8080
             initialDelaySeconds: 60
             periodSeconds: 15
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/readiness # Updated path
               port: 8080
             initialDelaySeconds: 30
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness # Use liveness endpoint for startup
+              port: 8080
+            initialDelaySeconds: 15
+            failureThreshold: 18 # (18 failures * 10s period) = 180s = 3 minutes
             periodSeconds: 10
           resources:
             requests:

@@ -16,3 +16,9 @@ export const getEmployeeMessage = () =>
 
 export const getDepartmentMessage = () =>
   axios.get(`${DEPARTMENT_BASE}/message`, { responseType: "text" });
+
+export const saveDepartment = (data: any) =>
+  axios.post(`${DEPARTMENT_BASE}/`, data);
+
+export const getDepartmentByCode = (code: string) =>
+  axios.get(`${DEPARTMENT_BASE}/${code}`);

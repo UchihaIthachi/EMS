@@ -3,7 +3,10 @@ import { Typography, Container, Paper, Box } from '@mui/material';
 
 const LandingPage: React.FC = () => {
   return (
-    <Container maxWidth="md" sx={{ mt: 5, mb: 5 }}>
+    // Removed mt: 5, MainLayout's padding and AppBar spacing should be sufficient.
+    // mb: 5 can remain if specific bottom spacing for this page is desired, or be standardized.
+    // For consistency, let's use mb: 3 or mb: 4 like other Paper/Container elements.
+    <Container maxWidth="md" sx={{ mb: 4 }}>
       <Paper elevation={3} sx={{ p: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           Welcome to the Employee Portal

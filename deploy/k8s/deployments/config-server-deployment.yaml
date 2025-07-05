@@ -45,15 +45,22 @@ spec:
               value: "kubernetes"
           livenessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/liveness # Updated path
               port: 8888
             initialDelaySeconds: 60
             periodSeconds: 15
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/readiness # Updated path
               port: 8888
             initialDelaySeconds: 30
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness # Use liveness endpoint for startup
+              port: 8888
+            initialDelaySeconds: 20 # Start probing relatively early
+            failureThreshold: 30    # (30 failures * 10s period) = 300s = 5 minutes
             periodSeconds: 10
           resources:
             requests:
