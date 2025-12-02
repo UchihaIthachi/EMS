@@ -1,18 +1,31 @@
-version: '3.8'
+version: "3.8"
 
 services:
   service-registry:
     volumes:
       - ../service-registry/target:/app/local-jar # Mount target dir
-    command: sh -c 'echo Waiting for config-server to be up if needed... && sleep 5 && exec java -jar $(find /app/local-jar -name "*.jar" -print -quit)'
-    # Add depends_on if it needs to wait for config-server or other critical services in this dev mode
-    # healthcheck can be kept or removed for this dev mode if startup is very different
+    command: sh -c 'exec java -jar $(find /app/local-jar -name "*.jar" -print -quit)'
+    environment:
+      - SPRING_PROFILES_ACTIVE=local-eureka
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   config-server:
     volumes:
       - ../config-server/target:/app/local-jar
-    command: sh -c 'echo Waiting for service-registry to be up if needed... && sleep 5 && exec java -jar $(find /app/local-jar -name "*.jar" -print -quit)'
-    # healthcheck can be kept or removed
+    command: sh -c 'exec java -jar $(find /app/local-jar -name "*.jar" -print -quit)'
+    environment:
+      - SPRING_PROFILES_ACTIVE=local-eureka
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   api-gateway:
     volumes:
@@ -34,7 +47,6 @@ services:
     command: sh -c 'echo Waiting for dependencies... && sleep 15 && exec java -jar $(find /app/local-jar -name "*.jar" -print -quit)'
     # depends_on from main docker-compose.yml should still apply
     # healthcheck can be kept or removed
-
 # Note:
 # 1. The paths like '../service-registry/target' assume this docker-compose.dev.yml
 #    is in the 'deploy/' directory.
