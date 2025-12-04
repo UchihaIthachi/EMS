@@ -16,9 +16,8 @@ The Employee Management System (EMS) is designed to manage employee and departme
 *   **API Gateway**: Single entry point for all client requests, handled by Spring Cloud Gateway, providing routing and potential for cross-cutting concerns.
 *   **Inter-Service Communication**: Synchronous communication using Feign Clients and asynchronous communication via RabbitMQ.
 *   **Distributed Tracing**: Integrated with Zipkin and Sleuth for monitoring and debugging requests across services.
-*   **Fault Tolerance**: Demonstrates Circuit Breaker patterns (Resilience4j) for improved system resilience.
+*   **Fault Tolerance**: Uses Resilience4j (Circuit Breaker) to handle service failures gracefully.
 *   **Containerized Deployment**: Dockerized services for easy local setup using Docker Compose and production-like deployments on Kubernetes.
-*   **CI/CD Ready**: Includes a Jenkinsfile for building, testing, and deploying the application.
 *   **Comprehensive Logging & Monitoring**: Support for ELK Stack (Elasticsearch, Logstash, Kibana) for logging and Prometheus/Grafana for metrics and monitoring.
 *   **Reactive Frontend**: A user interface built with React, TypeScript, and Vite.
 
@@ -33,7 +32,6 @@ The Employee Management System (EMS) is designed to manage employee and departme
 *   Spring Cloud Gateway
 *   Spring Cloud OpenFeign
 *   Netflix Eureka (for local discovery)
-*   Resilience4j (Circuit Breaker)
 *   Spring Sleuth & Zipkin (Distributed Tracing)
 *   RabbitMQ (Message Broker)
 *   MySQL (Databases)
@@ -47,7 +45,6 @@ The Employee Management System (EMS) is designed to manage employee and departme
 ### DevOps & Deployment
 *   Docker & Docker Compose
 *   Kubernetes (OKE - Oracle Kubernetes Engine targeted)
-*   Jenkins (CI/CD)
 *   Nexus (Artifact Repository)
 *   GitHub Container Registry (GHCR) (intended for K8s images)
 *   ArgoCD (for GitOps deployment to Kubernetes)
@@ -76,8 +73,6 @@ The Employee Management System (EMS) is designed to manage employee and departme
 │   ├── argo/           # ArgoCD application definition
 │   └── init/           # Database initialization scripts
 ├── .github/            # GitHub specific files (e.g., workflows)
-├── Jenkinsfile         # CI/CD pipeline definition for Jenkins
-├── cicd.sh             # Helper script for CI/CD tasks
 ├── k8s-deploy.sh       # Helper script for Kubernetes deployments
 ├── local-dev.sh        # Helper script for local development loop
 └── README.md           # This file
