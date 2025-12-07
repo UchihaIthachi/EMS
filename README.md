@@ -74,7 +74,7 @@ The Employee Management System (EMS) is designed to manage employee and departme
 │   └── init/           # Database initialization scripts
 ├── .github/            # GitHub specific files (e.g., workflows)
 ├── k8s-deploy.sh       # Helper script for Kubernetes deployments
-├── local-dev.sh        # Helper script for local development loop
+├── service-ops.sh      # Helper script for local deployment operations
 └── README.md           # This file
 ```
 
@@ -87,7 +87,11 @@ For a quick local setup:
 1.  Ensure Docker and Docker Compose are installed.
 2.  Clone the repository.
 3.  Navigate to the `deploy/` directory and create a `.env` file from `.env.Example`, updating necessary credentials (like `GIT_PAT` if your config repo is private).
-4.  Run `docker-compose up -d` from the `deploy/` directory.
+4.  Use the `service-ops.sh` script to build and run services:
+    ```bash
+    ./service-ops.sh --build        # Build all services
+    ./service-ops.sh --run          # Run all services (including observability)
+    ```
 
 For detailed instructions on local deployment, including prerequisites, environment setup, running services with different profiles (e.g., logging, monitoring), and troubleshooting, please refer to:
 *   **[Local Deployment Guide (local-deploy.md)](local-deploy.md)**
