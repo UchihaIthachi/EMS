@@ -89,20 +89,20 @@ done
 if $BUILD; then
   echo "🔨 Building: ${TARGET_SERVICES[*]}"
   for svc in "${TARGET_SERVICES[@]}"; do
-    if [ -f "$svc/pom.xml" ]; then
+    if [ -f "$svc/mvnw" ]; then
       echo "📦 Running Maven build for $svc..."
-      (cd "$svc" && mvn clean package -DskipTests)
+      (cd "$svc" && ./mvnw clean package -DskipTests)
     else
       echo "ℹ️  Skipping Maven build for $svc (no pom.xml)"
     fi
 
     echo "🐳 Building Docker image for $svc..."
-    docker-compose -f "$COMPOSE_FILE" build "$svc"
+    docker compose -f "$COMPOSE_FILE" build "$svc"
   done
 fi
 
 # Run block
 if $RUN; then
   echo "🚀 Starting: ${TARGET_SERVICES[*]}"
-  docker-compose -f "$COMPOSE_FILE" up -d "${TARGET_SERVICES[@]}"
+  docker compose -f "$COMPOSE_FILE" up -d "${TARGET_SERVICES[@]}"
 fi

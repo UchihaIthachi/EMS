@@ -18,7 +18,7 @@
 #     RUN mvn clean package -DskipTests
     
 #     # -------- STAGE 2: Run --------
-#     FROM openjdk:17-jdk-slim
+#     FROM eclipse-temurin:17-jdk-alpine
     
 #     VOLUME /tmp
     
@@ -28,8 +28,8 @@
     
 #     ENTRYPOINT ["java", "-jar", "/app.jar"]
     
-FROM --platform=linux/arm64 arm64v8/openjdk:17-jdk-slim
-RUN apt-get update && apt-get install -y curl
+FROM eclipse-temurin:17-jdk-alpine
+RUN apk add --no-cache curl
 VOLUME /tmp
 COPY target/*.jar app.jar
 EXPOSE 8761

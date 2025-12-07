@@ -89,20 +89,20 @@ case "$ACTION" in
   up)
     echo "Starting services with local JARs (if built)..."
     echo "Using profiles: ${PROFILES[*]}"
-    docker-compose $COMPOSE_FILES "${PROFILES[@]}" up "$@"
+    docker compose $COMPOSE_FILES "${PROFILES[@]}" up "$@"
     ;;
   down)
     echo "Stopping services..."
     # Note: `down` command doesn't use profiles in the same way as `up` for stopping.
     # To remove resources for specific profiles, they are typically stopped when active.
-    # `docker-compose down` will stop services defined in the base and dev override.
-    docker-compose $COMPOSE_FILES down "$@"
+    # `docker compose down` will stop services defined in the base and dev override.
+    docker compose $COMPOSE_FILES down "$@"
     ;;
   logs)
-    docker-compose $COMPOSE_FILES logs -f "$@"
+    docker compose $COMPOSE_FILES logs -f "$@"
     ;;
   ps)
-    docker-compose $COMPOSE_FILES ps "$@"
+    docker compose $COMPOSE_FILES ps "$@"
     ;;
   *)
     echo "Invalid action: $ACTION"

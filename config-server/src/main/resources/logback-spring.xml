@@ -1,5 +1,8 @@
 <configuration>
-    <springProfile name="!local-eureka">
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <springProfile name="logging">
         <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
             <destination>logstash:5000</destination>
             <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
@@ -7,18 +10,12 @@
 
         <root level="INFO">
             <appender-ref ref="LOGSTASH" />
+            <appender-ref ref="CONSOLE" />
         </root>
     </springProfile>
 
-    <springProfile name="local-eureka">
+    <springProfile name="!logging">
         <root level="INFO">
-            <!-- In local-eureka, we might not want to connect to Logstash. -->
-            <!-- You can add a CONSOLE appender here if you want to see logs in the console. -->
-            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-                <encoder>
-                    <pattern>%d{yyyy-MM-dd HH:mm:ss} - %msg%n</pattern>
-                </encoder>
-            </appender>
             <appender-ref ref="CONSOLE" />
         </root>
     </springProfile>
