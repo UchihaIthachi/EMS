@@ -17,24 +17,24 @@ spec:
     spec:
       containers:
         - name: zipkin
-          image: openzipkin/zipkin:2.24.1
+          image: openzipkin/zipkin:3
           ports:
             - containerPort: 9411
           livenessProbe:
             httpGet:
               path: /zipkin/health
               port: 9411
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 15
           readinessProbe:
             httpGet:
               path: /zipkin/health
               port: 9411
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
             periodSeconds: 10
           resources:
             requests:
-              cpu: "50m"  # Was 100m
+              cpu: "100m"  # Was 100m
               memory: "256Mi"
             limits:
               cpu: "1"

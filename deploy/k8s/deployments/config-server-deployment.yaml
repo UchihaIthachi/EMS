@@ -47,17 +47,17 @@ spec:
             httpGet:
               path: /actuator/health
               port: 8888
-            initialDelaySeconds: 60
+            initialDelaySeconds: 120
             periodSeconds: 15
           readinessProbe:
             httpGet:
               path: /actuator/health
               port: 8888
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 10
           resources:
             requests:
-              cpu: "150m" # Was 250m
+              cpu: "500m" # Was 250m
               memory: "512Mi"
             limits:
               cpu: "1"

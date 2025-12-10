@@ -65,17 +65,17 @@ spec:
             httpGet:
               path: /actuator/health
               port: 8081
-            initialDelaySeconds: 70 # Longer delay for services with DB connections
+            initialDelaySeconds: 150 # Longer delay for services with DB connections
             periodSeconds: 15
           readinessProbe:
             httpGet:
               path: /actuator/health
               port: 8081
-            initialDelaySeconds: 40 # Longer delay
+            initialDelaySeconds: 80 # Longer delay
             periodSeconds: 10
           resources:
             requests:
-              cpu: "150m" # Was 250m
+              cpu: "500m" # Was 250m
               memory: "512Mi"
             limits:
               cpu: "1"

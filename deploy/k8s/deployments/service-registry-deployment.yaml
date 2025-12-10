@@ -36,17 +36,17 @@ spec:
             httpGet:
               path: /actuator/health
               port: 8761
-            initialDelaySeconds: 60 # Adjusted for typical Spring Boot app startup
+            initialDelaySeconds: 120 # Adjusted for typical Spring Boot app startup
             periodSeconds: 15
           readinessProbe:
             httpGet:
               path: /actuator/health
               port: 8761
-            initialDelaySeconds: 30 # Adjusted
+            initialDelaySeconds: 60 # Adjusted
             periodSeconds: 10
           resources:
             requests:
-              cpu: "75m"  # Was 100m
+              cpu: "300m"  # Was 100m
               memory: "256Mi"
             limits:
               cpu: "500m"
