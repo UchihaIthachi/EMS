@@ -1,32 +1,48 @@
 global:
-  scrape_interval: 15s
+  scrape_interval: 5s
 
 scrape_configs:
-  - job_name: "employee-service"
-    metrics_path: "/actuator/prometheus"
+  - job_name: 'prometheus'
     static_configs:
-      - targets: ["employee-service:8084"]
+      - targets: ['localhost:9090']
 
-  - job_name: "department-service"
-    metrics_path: "/actuator/prometheus"
+  - job_name: 'department-service'
+    metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ["department-service:8083"]
+      - targets: ['department-service:8083']
+        labels:
+          application: 'department-service'
 
-  - job_name: "config-server"
-    metrics_path: "/actuator/prometheus"
+  - job_name: 'employee-service'
+    metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ["config-server:8888"]
+      - targets: ['employee-service:8084']
+        labels:
+          application: 'employee-service'
 
-  - job_name: "service-registry"
-    metrics_path: "/actuator/prometheus"
+  - job_name: 'api-gateway'
+    metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ["service-registry:8761"]
+      - targets: ['api-gateway:9191']
+        labels:
+          application: 'api-gateway'
+          
+  - job_name: 'config-server'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['config-server:8888']
+        labels:
+          application: 'config-server'
 
-  - job_name: "api-gateway"
-    metrics_path: "/actuator/prometheus"
+  - job_name: 'service-registry'
+    metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ["api-gateway:9191"]
+      - targets: ['service-registry:8761']
+        labels:
+          application: 'service-registry'
 
-  - job_name: "nginx"
+  - job_name: 'nginx-exporter'
     static_configs:
-      - targets: ["nginx-exporter:9113"]
+      - targets: ['nginx-exporter:9113']
+        labels:
+          application: 'nginx-proxy'
