@@ -22,4 +22,7 @@ dashboards:
     jvm-micrometer:          # grafana.com dashboard 4701 "JVM (Micrometer)"
       gnetId: 4701
       revision: 10
-      datasource: Prometheus
+      # The dashboard refers to ${DS_PROMETHEUS}; map it to our datasource uid.
+      datasource:
+        - { name: DS_PROMETHEUS, value: prometheus }
+    # ems-overview: our own dashboard, file-provided by metrics.sh (--set-file)

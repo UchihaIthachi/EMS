@@ -29,6 +29,8 @@ data:
   JAVA_TOOL_OPTIONS: {{ $.Values.java.toolOptions | quote }}
   {{- end }}
   SPRING_MAIN_LAZY_INITIALIZATION: {{ $.Values.java.lazyInit | quote }}
+  # Micrometer common tag: Grafana's JVM dashboard (4701) filters on application="..."
+  MANAGEMENT_METRICS_TAGS_APPLICATION: {{ $name | quote }}
   {{- range $k, $v := $svc.env }}
   {{ $k }}: {{ $v | quote }}
   {{- end }}
@@ -53,7 +55,7 @@ spec:
     metadata:
       labels: {{- include "ems.labels" $ctx | nindent 8 }}
       annotations:
-        checksum/config: {{ toJson (list $svc.env $.Values.java $.Values.tracing) | sha256sum | trunc 16 }}
+        checksum/config: {{ toJson (list $svc.env $.Values.java $.Values.tracing "metrics-tags-v1") | sha256sum | trunc 16 }}
         checksum/secrets: {{ toJson $.Values.secrets | sha256sum | trunc 16 }}
         {{- if $.Values.metrics.enabled }}
         prometheus.io/scrape: "true"

@@ -23,7 +23,8 @@ helm repo update prometheus-community grafana-community >/dev/null
 helm upgrade -i prometheus prometheus-community/prometheus -n $M --create-namespace -f $O/prometheus-values.yaml --wait --timeout 5m
 
 step "3. Grafana (~150Mi) with the JVM Micrometer dashboard"
-helm upgrade -i grafana grafana-community/grafana -n $M -f $O/grafana-values.yaml --wait --timeout 5m
+helm upgrade -i grafana grafana-community/grafana -n $M -f $O/grafana-values.yaml \
+  --set-file dashboards.default.ems-overview.json=$O/dashboards/ems-overview.json --wait --timeout 5m
 
 step "4. EMS chart: scrape annotations + allow-metrics-scrape NetworkPolicy (rolls the Spring pods)"
 bash deploy/lab-deploy.sh

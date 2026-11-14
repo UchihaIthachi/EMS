@@ -113,6 +113,16 @@ cd deploy/compose && cp .env.example .env && docker compose up -d   # http://127
 
 The tracing request goes gateway → employee-service (with its `SELECT`) → Feign → department-service, where the department comes from the Redis cache, not MySQL.
 
+## Screenshots
+
+**Grafana: EMS overview under k6 load.** This is our own dashboard (`deploy/observability/dashboards/ems-overview.json`). Prometheus scrapes `/actuator/prometheus` on every Spring pod.
+
+![Grafana EMS overview](docs/img/grafana.png)
+
+**Jaeger: one request, one trace.** It goes gateway → employee-service (with its `SELECT`) → Feign → department-service. This one was a cache miss: Redis `GET`, then `SELECT`, then Redis `SET`.
+
+![Jaeger trace](docs/img/trace.png)
+
 ## Repository layout
 
 ```
