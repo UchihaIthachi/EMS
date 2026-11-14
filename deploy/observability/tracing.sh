@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Observability demo, part 2: Jaeger + the OpenTelemetry Java agent already baked into the images.
 # Run on the Mac:  bash deploy/observability/tracing.sh
+# Only check traces: bash deploy/observability/tracing.sh check
 # Turn off:        bash deploy/observability/tracing.sh off   (redeploys EMS without the agent, deletes Jaeger)
 set -eu
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/ems-lab}"
@@ -15,6 +16,7 @@ if [ "${1:-}" = off ]; then
   kubectl delete -f $O/jaeger.yaml --ignore-not-found; exit 0
 fi
 
+if [ "${1:-}" != check ]; then
 step "1. Headroom (stop if a worker is above 80%)"
 kubectl top nodes
 [ "$(maxw)" -le 80 ] || die "a worker is above 80% memory; remove Prometheus/Grafana first: bash $O/metrics.sh remove"
@@ -29,28 +31,46 @@ HELM_ARGS="--set tracing.enabled=true" bash deploy/lab-deploy.sh
 kubectl -n ems get netpol allow-tracing-egress >/dev/null || die "allow-tracing-egress missing"
 kubectl -n ems get cm employee-service -o jsonpath='{.data.JAVA_TOOL_OPTIONS}' | grep -q javaagent || die "agent not in JAVA_TOOL_OPTIONS"
 kubectl -n ems logs deploy/employee-service -c app | grep -m1 'opentelemetry-javaagent' || echo "  (agent banner not found in logs; checking traces anyway)"
+fi
 
 step "4. Traces (the smoke test above made requests; wait for the batch exporter)"
 kubectl -n $M port-forward svc/jaeger 16686:16686 >/dev/null 2>&1 & PF=$!; trap 'kill $PF 2>/dev/null || true' EXIT
 sleep 15
-curl -s http://127.0.0.1:16686/api/services | python3 -c 'import json,sys; print("  services:", sorted(json.load(sys.stdin)["data"] or []))'
-ok=0
+J=http://127.0.0.1:16686
+for path in /api/services /api/v3/services; do
+  printf '  GET %-18s HTTP %s\n' "$path" "$(curl -s -o /dev/null -w '%{http_code}' $J$path)"
+done
+# Jaeger v2: /api/v3 (OTLP JSON) is the stable query API; the legacy /api/* is the UI's internal API.
+curl -s $J/api/v3/services | python3 -c 'import json,sys; print("  services:", sorted(json.load(sys.stdin).get("services") or []))' \
+  || { echo "  raw:"; curl -s $J/api/v3/services | head -c 300; echo; }
+ok=0; r=
 for i in 1 2 3 4 5 6; do
-  r=$(curl -s 'http://127.0.0.1:16686/api/traces?service=api-gateway&limit=50&lookback=1h' | python3 -c '
-import json,sys
-best=None
-for t in json.load(sys.stdin)["data"] or []:
-    svcs={p["serviceName"] for p in t["processes"].values()}
-    if best is None or len(svcs)>len(best[1]): best=(t,svcs)
-if best:
-    t,svcs=best
-    root=min(t["spans"],key=lambda s:s["startTime"])
-    print(len(svcs), t["traceID"], ",".join(sorted(svcs)), len(t["spans"]), root["operationName"].replace("|","/"), round(root["duration"]/1000,1), sep="|")
+  start=$(python3 -c 'import datetime as d; print((d.datetime.now(d.timezone.utc)-d.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"))')
+  end=$(python3 -c 'import datetime as d; print(d.datetime.now(d.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))')
+  r=$(curl -s -G $J/api/v3/traces --data-urlencode query.service_name=api-gateway \
+        --data-urlencode query.start_time_min=$start --data-urlencode query.start_time_max=$end \
+        --data-urlencode query.search_depth=50 | python3 -c '
+import json,sys,collections
+d=json.load(sys.stdin)
+res=d.get("result",d)
+traces=collections.defaultdict(lambda:{"svcs":set(),"spans":[]})
+for rs in res.get("resourceSpans",[]):
+    svc=next((a["value"].get("stringValue") for a in rs.get("resource",{}).get("attributes",[]) if a["key"]=="service.name"),"?")
+    for ss in rs.get("scopeSpans",[]):
+        for sp in ss.get("spans",[]):
+            t=traces[sp["traceId"]]; t["svcs"].add(svc); t["spans"].append(sp)
+if traces:
+    tid,t=max(traces.items(),key=lambda kv:(len(kv[1]["svcs"]),len(kv[1]["spans"])))
+    root=min(t["spans"],key=lambda s:int(s["startTimeUnixNano"]))
+    dur=(int(root["endTimeUnixNano"])-int(root["startTimeUnixNano"]))/1e6
+    print(len(t["svcs"]),tid,",".join(sorted(t["svcs"])),len(t["spans"]),root["name"].replace("|","/"),round(dur,1),sep="|")
 ' 2>/dev/null || true)
   [ -n "$r" ] && [ "${r%%|*}" -ge 3 ] && { ok=1; break; }
   sleep 10
 done
-[ -n "$r" ] || die "no traces for api-gateway (check: kubectl -n ems logs deploy/api-gateway | grep -i otel)"
+[ -n "$r" ] || { echo "  raw /api/v3/traces reply:"; curl -s -G $J/api/v3/traces --data-urlencode query.service_name=api-gateway \
+  --data-urlencode query.start_time_min=$start --data-urlencode query.start_time_max=$end | head -c 400; echo; }
+[ -n "$r" ] || die "no traces for api-gateway (check: kubectl -n ems logs deploy/api-gateway -c app | grep -i otel)"
 IFS='|' read -r n tid svcs spans rootop dur <<< "$r"
 echo "  widest trace: $tid"
 echo "  services in it ($n): $svcs"
