@@ -5,6 +5,7 @@ import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
@@ -56,8 +57,9 @@ public class EventsConfig {
     }
 
     @Bean
-    public MessageConverter jsonMessageConverter() {
-        Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
+    public MessageConverter jsonMessageConverter(ObjectMapper objectMapper) {
+        // Spring Boot's ObjectMapper already handles java.time types (Instant) and ISO dates.
+        Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter(objectMapper);
         // The producer's __TypeId__ header names a class that doesn't exist here: use the listener's parameter type.
         converter.setAlwaysConvertToInferredType(true);
         return converter;

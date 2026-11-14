@@ -1,5 +1,6 @@
 package com.springbootacademy.employeeservice.events;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
@@ -16,7 +17,8 @@ public class EventsConfig {
     }
 
     @Bean
-    public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+    public MessageConverter jsonMessageConverter(ObjectMapper objectMapper) {
+        // Spring Boot's ObjectMapper already handles java.time types (Instant) and ISO dates.
+        return new Jackson2JsonMessageConverter(objectMapper);
     }
 }
