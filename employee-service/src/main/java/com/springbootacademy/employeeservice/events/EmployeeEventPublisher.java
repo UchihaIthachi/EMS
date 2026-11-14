@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Best-effort publisher: a RabbitMQ outage must not fail the HTTP request.
@@ -28,7 +29,7 @@ public class EmployeeEventPublisher {
     }
 
     public void employeeCreated(Long id, String email, String departmentCode) {
-        EmployeeCreatedEvent event = new EmployeeCreatedEvent(id, email, departmentCode, Instant.now());
+        EmployeeCreatedEvent event = new EmployeeCreatedEvent(UUID.randomUUID().toString(), id, email, departmentCode, Instant.now());
         try {
             rabbitTemplate.convertAndSend(exchange, EMPLOYEE_CREATED, event);
         } catch (AmqpException e) {

@@ -13,9 +13,11 @@ public class EmployeeEventsListener {
 
     private static final Logger log = LoggerFactory.getLogger(EmployeeEventsListener.class);
     private final AtomicLong processed = new AtomicLong();
+    private final EmployeeEventHandler handler;
     private final long delayMs;
 
-    public EmployeeEventsListener(@Value("${ems.events.consumer-delay-ms:0}") long delayMs) {
+    public EmployeeEventsListener(EmployeeEventHandler handler, @Value("${ems.events.consumer-delay-ms:0}") long delayMs) {
+        this.handler = handler;
         this.delayMs = delayMs;
     }
 
@@ -24,11 +26,9 @@ public class EmployeeEventsListener {
         if (delayMs > 0) {
             Thread.sleep(delayMs); // simulated work, used to demo KEDA scaling on queue length
         }
+        boolean applied = handler.handle(event);
         long n = processed.incrementAndGet();
-        log.info("employee.created: employee={} department={} (processed {})", event.employeeId(), event.departmentCode(), n);
-    }
-
-    public long processedCount() {
-        return processed.get();
+        log.info("employee.created event={} employee={} department={} applied={} (handled {})",
+                event.eventId(), event.employeeId(), event.departmentCode(), applied, n);
     }
 }

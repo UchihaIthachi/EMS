@@ -9,6 +9,10 @@ RUN --mount=type=cache,target=/root/.m2 mvn -B -q -DskipTests package && cp targ
 
 FROM eclipse-temurin:17-jre
 RUN useradd --system --uid 10001 --no-create-home app
+# OpenTelemetry agent is shipped but OFF by default. Turn tracing on by appending
+# "-javaagent:/otel/opentelemetry-javaagent.jar" to JAVA_TOOL_OPTIONS and setting OTEL_* env vars.
+ARG OTEL_AGENT_VERSION=2.10.0
+ADD --chmod=644 https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_AGENT_VERSION}/opentelemetry-javaagent.jar /otel/opentelemetry-javaagent.jar
 WORKDIR /app
 COPY --from=build /app.jar /app/app.jar
 USER 10001
