@@ -6,3 +6,4 @@ deploy/nginx-logs/
 *.local.yaml
 deploy/kustomize/base/secrets.env
 deploy/compose/.env
+.idea/
