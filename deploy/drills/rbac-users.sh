@@ -38,6 +38,7 @@ YAML
 done
 
 check() { # check <context> <expected yes|no> <verb> <resource> [extra args]
+  # Subresources need --subresource: "pods/exec" would mean "the pod named exec".
   local ctx=$1 want=$2; shift 2
   local got; got=$(kubectl --context "$ctx" auth can-i "$@" 2>/dev/null || true)
   if [ "$got" = "$want" ]; then printf '  PASS  %-14s can-i %-32s = %s\n' "$ctx" "$*" "$got"
@@ -46,15 +47,17 @@ check() { # check <context> <expected yes|no> <verb> <resource> [extra args]
 FAILED=0
 echo; echo "== permission checks"
 check ems-developer yes list pods
-check ems-developer yes get pods/log
+check ems-developer yes get pods --subresource=log
 check ems-developer no  get secrets
 check ems-developer no  delete pods
 check ems-developer no  list pods -n default
-check ems-operator  yes patch deployments/scale
-check ems-operator  yes create pods/exec
+check ems-operator  yes patch deployments --subresource=scale
+check ems-operator  yes create pods --subresource=exec
 check ems-operator  yes delete pods
 check ems-operator  no  get secrets
 check ems-operator  no  delete deployments
+check ems-developer no  create pods --subresource=exec
+check ems-developer no  patch deployments --subresource=scale
 echo; echo "== real request with the developer certificate (no impersonation)"
 kubectl --context ems-developer get pods --no-headers | head -3
 echo; [ $FAILED = 0 ] && echo "ALL RBAC CHECKS PASSED" || { echo "SOME CHECKS FAILED"; exit 1; }
