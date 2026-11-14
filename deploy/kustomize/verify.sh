@@ -8,6 +8,12 @@ cd "$(git rev-parse --show-toplevel)"
 [ "$(basename "$PWD")" = EMS ] || { echo "!! not in the EMS repo"; exit 1; }
 K=deploy/kustomize
 R="kubectl kustomize --enable-helm --load-restrictor=LoadRestrictionsNone"
+
+nsck() {  # every namespaced object must land in ems (kustomize 5.8 regression: kubernetes-sigs/kustomize#6058)
+  awk '/^---/{if(k!=""&&k!="Namespace"&&k!="PriorityClass"&&ns!="ems"){print "  !! "k" "n" -> namespace \""ns"\"";bad++} k="";n="";ns="";next}
+       /^kind:/{k=$2} /^  name:/{if(n=="")n=$2} /^  namespace:/{ns=$2}
+       END{if(k!=""&&k!="Namespace"&&k!="PriorityClass"&&ns!="ems"){print "  !! "k" "n;bad++} exit bad>0}' "$1"
+}
 step() { printf '\n== %s\n' "$*"; }
 
 step "1. secrets.env (git-ignored)"
@@ -31,6 +37,7 @@ step "2. Render lab overlay"
 $R $K/overlays/lab > /tmp/ems-lab.yaml
 grep -c '^kind:' /tmp/ems-lab.yaml | sed 's/^/objects: /'
 grep '^kind:' /tmp/ems-lab.yaml | sort | uniq -c
+nsck /tmp/ems-lab.yaml && echo "every namespaced object is in ems: ok" || { echo "!! objects without namespace ems (see above)"; exit 1; }
 grep -q 'name: mysql$' /tmp/ems-lab.yaml && echo "Secrets present (from secretGenerator)"
 grep 'image: ghcr' /tmp/ems-lab.yaml | sort -u
 
@@ -40,7 +47,7 @@ kubectl diff -f /tmp/ems-lab.yaml > /tmp/ems-lab.diff 2>&1; rc=$?
 set -e
 case $rc in
   0) echo "NO DIFFERENCES: Kustomize renders exactly what Helm deployed";;
-  1) echo "differences (review):"; grep -E '^[-+] ' /tmp/ems-lab.diff | grep -vE 'generation:|resourceVersion|managedFields' | head -40
+  1) echo "differences (review):"; grep -E '^[-+] ' /tmp/ems-lab.diff | grep -vE 'generation:|resourceVersion|managedFields|last-applied-configuration|^[-+] +\\{"apiVersion' | head -40
      echo "(full diff: /tmp/ems-lab.diff)";;
   *) echo "!! kubectl diff failed:"; tail -20 /tmp/ems-lab.diff; exit 1;;
 esac
@@ -48,6 +55,7 @@ esac
 step "4. Render full overlay and spot-check"
 $R $K/overlays/full > /tmp/ems-full.yaml
 grep -c '^kind:' /tmp/ems-full.yaml | sed 's/^/objects: /'
+nsck /tmp/ems-full.yaml || { echo "!! full overlay has objects outside ems"; exit 1; }
 kubectl apply --dry-run=server -f /tmp/ems-full.yaml >/dev/null && echo "server dry-run accepts it: ok"
 python3 - <<'PY' || grep -nE '^kind: (HorizontalPodAutoscaler|ScaledObject|ResourceQuota)|replicas:|minReplica|maxReplica|requests.memory|limits.memory' /tmp/ems-full.yaml
 import yaml  # PyYAML; if missing, the grep fallback prints the same facts
