@@ -5,11 +5,14 @@
 #   3. Autoscaling: k6 load -> HPA scales employee-service; slow consumer -> KEDA scales department-service.
 #   4. PodDisruptionBudget: draining api-gateway pods never takes the API down; a drain that would
 #      break the budget is refused.
-# Usage: bash ~/personal/EMS/deploy/drills/section-e.sh
+# Usage: bash ~/personal/EMS/deploy/drills/section-e.sh        (all drills)
+#        ONLY=1,2,4 bash .../section-e.sh                        (selected drills)
 set -uo pipefail
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/ems-lab}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 NS=ems; B=http://127.0.0.1:18080
+ONLY="${ONLY:-1,2,3,4}"
+want() { [[ ",$ONLY," == *",$1,"* ]]; }
 declare -a RESULTS=()
 step()   { printf '\n== %s\n' "$*"; }
 pass()   { RESULTS+=("PASS  $*"); printf '  PASS  %s\n' "$*"; }
@@ -37,28 +40,36 @@ printf '{"firstName":"Drill","lastName":"Probe","email":"drill-%s@example.test",
 [ "$(code -X POST -H 'Content-Type: application/json' --data-binary @/tmp/e-emp.json $B/api/v1/employee-service)" = 201 ] || die "cannot create probe employee"
 EMP=$(sed -n 's/.*"id":\([0-9]*\).*/\1/p' /tmp/e-body); echo "  probe employee id $EMP"
 
+if want 1; then
 step "1. NetworkPolicy (default deny)"
 kubectl -n $NS run np-test --image=busybox:1.36 --restart=Never --labels=app.kubernetes.io/name=np-test \
-  --command -- sleep 300 >/dev/null
+  --overrides='{"spec":{"securityContext":{"runAsNonRoot":true,"runAsUser":65534,"seccompProfile":{"type":"RuntimeDefault"}},"containers":[{"name":"np-test","image":"busybox:1.36","command":["sleep","300"],"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}}]}}' >/dev/null
 kubectl -n $NS wait --for=condition=Ready pod/np-test --timeout=60s >/dev/null || die "np-test pod not ready"
-kubectl -n $NS exec np-test -- nslookup mysql >/dev/null 2>&1 && pass "stray pod can resolve DNS (allow-dns-egress)" || fail "stray pod cannot resolve DNS"
+kubectl -n $NS exec np-test -- nslookup mysql.ems.svc.cluster.local >/dev/null 2>&1 && pass "stray pod can resolve DNS (allow-dns-egress)" || fail "stray pod cannot resolve DNS"
 kubectl -n $NS exec np-test -- nc -z -w 3 mysql 3306 >/dev/null 2>&1 && fail "stray pod reached MySQL (policy not enforced)" || pass "stray pod blocked from MySQL:3306"
 kubectl -n $NS exec np-test -- nc -z -w 3 employee-service 8080 >/dev/null 2>&1 && fail "stray pod reached employee-service" || pass "stray pod blocked from employee-service:8080"
 kubectl -n $NS exec deploy/employee-service -c app -- bash -c 'timeout 3 bash -c "</dev/tcp/mysql/3306"' >/dev/null 2>&1 \
   && pass "employee-service allowed to MySQL:3306" || fail "employee-service blocked from MySQL (policy too strict)"
 kubectl -n $NS delete pod np-test --wait=false >/dev/null
+fi
 
+if want 2; then
 step "2. Circuit breaker: department-service down"
 kubectl -n $NS annotate scaledobject department-service autoscaling.keda.sh/paused-replicas="0" --overwrite >/dev/null
-for i in $(seq 1 30); do [ "$(kubectl -n $NS get deploy department-service -o jsonpath='{.status.readyReplicas}')" = "" ] && break; sleep 2; done
+gone=no; for i in $(seq 1 60); do
+  [ "$(kubectl -n $NS get pods -l app.kubernetes.io/name=department-service --no-headers 2>/dev/null | wc -l | tr -d ' ')" = 0 ] && { gone=yes; break; }; sleep 2
+done
+[ $gone = yes ] && echo "  department-service: 0 pods" || echo "  !! department pods still present after 120 s"
 c=$(code $B/api/v1/employee-service/$EMP)
 if [ "$c" = 200 ] && grep -q '"departmentDTO":null' /tmp/e-body; then pass "employee GET 200 with departmentDTO null while department-service is down (fallback)"
-else fail "employee GET returned $c: $(head -c 160 /tmp/e-body)"; fi
+else fail "employee GET returned $c, department part: $(grep -o '"departmentDTO":.*' /tmp/e-body | head -c 120)"; fi
 kubectl -n $NS annotate scaledobject department-service autoscaling.keda.sh/paused-replicas- >/dev/null
 kubectl -n $NS rollout status deploy/department-service --timeout=240s >/dev/null
 ok=no; for i in $(seq 1 12); do code $B/api/v1/employee-service/$EMP >/dev/null; grep -q '"departmentDTO":{' /tmp/e-body && { ok=yes; break; }; sleep 5; done
 [ $ok = yes ] && pass "department details back after recovery (circuit closed)" || fail "department still missing after recovery"
+fi
 
+if want 3; then
 step "3. Autoscaling under load (about 3 minutes)"
 helm upgrade ems "$ROOT/deploy/helm/ems" -n $NS --reuse-values \
   --set services.department-service.env.EMS_EVENTS_CONSUMERDELAYMS=100 >/dev/null || die "helm upgrade failed"
@@ -74,7 +85,7 @@ while kill -0 $K6 2>/dev/null; do
   [ "${e:-0}" -gt $maxE ] && maxE=$e; [ "${d:-0}" -gt $maxD ] && maxD=$d; [ "${q:-0}" -gt $maxQ ] && maxQ=$q
   sleep 15
 done
-grep -E 'http_req_failed|http_req_duration|iterations' /tmp/e-k6.txt | sed 's/^/  k6 /' | head -4
+grep -E 'http_req_(failed|duration)\.+:' /tmp/e-k6.txt | sed 's/^ */  k6 /'
 [ $maxE -ge 2 ] && pass "HPA scaled employee-service to $maxE" || fail "HPA did not scale employee-service (max $maxE; check kubectl -n ems describe hpa employee-service)"
 [ $maxD -ge 2 ] && pass "KEDA scaled department-service to $maxD (queue peaked at $maxQ)" || fail "KEDA did not scale department-service (queue peaked at $maxQ)"
 helm upgrade ems "$ROOT/deploy/helm/ems" -n $NS --reuse-values \
@@ -83,21 +94,24 @@ q=0; for i in $(seq 1 24); do q=$(kubectl -n $NS exec rabbitmq-0 -- rabbitmqctl 
 [ "${q:-1}" = 0 ] && pass "queue drained to 0 after load" || fail "queue still has $q messages"
 dlq=$(kubectl -n $NS exec rabbitmq-0 -- rabbitmqctl list_queues -q name messages 2>/dev/null | awk '$1=="department.employee-events.dlq"{print $2}')
 [ "${dlq:-0}" = 0 ] && pass "DLQ empty (no poison messages under load)" || fail "DLQ has $dlq messages"
+fi
 
+if want 4; then
 step "4. PodDisruptionBudget during node drains"
 ( while true; do printf '%s\n' "$(code $B/api/v1/department-controller/ENG)" >> /tmp/e-probe; sleep 0.5; done ) & PROBE=$!
 : > /tmp/e-probe
-kubectl drain lima-w1 --pod-selector=app.kubernetes.io/name=api-gateway --ignore-daemonsets --timeout=120s >/dev/null 2>&1 \
+kubectl drain lima-w1 --pod-selector=app.kubernetes.io/name=api-gateway --ignore-daemonsets --delete-emptydir-data --timeout=120s >/dev/null 2>&1 \
   && pass "drained api-gateway from lima-w1 (1 of 2 allowed by PDB)" || fail "first drain failed"
 kubectl -n $NS rollout status deploy/api-gateway --timeout=180s >/dev/null
 kubectl -n $NS get pods -l app.kubernetes.io/name=api-gateway -o wide --no-headers | awk '{print "    "$1" on "$7}'
-out=$(kubectl drain lima-w2 --pod-selector=app.kubernetes.io/name=api-gateway --ignore-daemonsets --timeout=40s 2>&1)
+out=$(kubectl drain lima-w2 --pod-selector=app.kubernetes.io/name=api-gateway --ignore-daemonsets --delete-emptydir-data --timeout=40s 2>&1)
 echo "$out" | grep -qi "disruption budget" && pass "second drain refused: would violate PodDisruptionBudget" || fail "second drain not blocked by PDB: $(echo "$out" | tail -1)"
 kubectl uncordon lima-w1 lima-w2 >/dev/null
 kubectl -n $NS rollout status deploy/api-gateway --timeout=180s >/dev/null
 kill $PROBE 2>/dev/null; PROBE=
 total=$(wc -l < /tmp/e-probe | tr -d ' '); bad=$(grep -vc '^200$' /tmp/e-probe)
 [ "$bad" = 0 ] && pass "API answered 200 to all $total requests during the drains" || fail "$bad of $total requests failed during the drains"
+fi
 
 step "Summary"
 printf '  %s\n' "${RESULTS[@]}"
