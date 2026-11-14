@@ -1,0 +1,22 @@
+<div class="inst" id="cb-sim">
+  <h3>Try it: the circuit breaker</h3>
+  <p class="cap">This runs the same rules as diagram 05: a window of 10 calls, a minimum of 5, a 50% threshold, 15 s open and 2 trial calls. Each button is one call from employee-service to department-service.</p>
+  <div class="row">
+    <span class="state s-CLOSED" id="cb-state" aria-live="polite">CLOSED</span>
+    <button class="ok" id="cb-ok" type="button">Successful call</button>
+    <button class="bad" id="cb-bad" type="button">Failed call</button>
+    <button class="warn" id="cb-slow" type="button">Slow call (&gt; 2 s)</button>
+    <button id="cb-wait" type="button">Wait 15 s</button>
+    <button class="bad" id="cb-outage" type="button">department-service down (5 failures)</button>
+    <button id="cb-reset" type="button">Reset</button>
+  </div>
+  <div class="cap" id="cb-wlabel">Sliding window: last 10 calls</div>
+  <div class="window" id="cb-window"></div>
+  <div class="meters">
+    <div class="meter"><span>calls recorded</span><b id="cb-n">0</b></div>
+    <div class="meter"><span>failure rate</span><b id="cb-f">0%</b></div>
+    <div class="meter"><span>slow-call rate</span><b id="cb-s">0%</b></div>
+    <div class="meter"><span>open for another</span><b id="cb-o">—</b></div>
+  </div>
+  <pre class="log" id="cb-log" aria-live="polite"></pre>
+</div>

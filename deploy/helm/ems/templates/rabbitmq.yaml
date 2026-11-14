@@ -1,0 +1,102 @@
+{{- $ctx := dict "ctx" . "name" "rabbitmq" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+data:
+  10-ems.conf: |
+    # The default watermark (40% of the container limit) would block publishers in a small pod.
+    vm_memory_high_watermark.relative = 0.8
+    disk_free_limit.absolute = 200MB
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rabbitmq
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-headless
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+spec:
+  clusterIP: None
+  selector: {{- include "ems.selector" $ctx | nindent 4 }}
+  ports:
+    - { name: amqp, port: 5672 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+spec:
+  selector: {{- include "ems.selector" $ctx | nindent 4 }}
+  ports:
+    - { name: amqp, port: 5672, targetPort: amqp }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+spec:
+  serviceName: rabbitmq-headless
+  replicas: 1
+  selector:
+    matchLabels: {{- include "ems.selector" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "ems.labels" $ctx | nindent 8 }}
+    spec:
+      serviceAccountName: rabbitmq
+      automountServiceAccountToken: false
+      priorityClassName: ems-data
+      terminationGracePeriodSeconds: 60
+      securityContext: {{- include "ems.podSecurity" (dict "uid" 999) | nindent 8 }}
+      containers:
+        - name: rabbitmq
+          image: {{ .Values.rabbitmq.image }}
+          ports:
+            - { name: amqp, containerPort: 5672 }
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom: { secretKeyRef: { name: rabbitmq, key: username } }
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom: { secretKeyRef: { name: rabbitmq, key: password } }
+          startupProbe:
+            exec: { command: ["rabbitmq-diagnostics", "-q", "ping"] }
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            exec: { command: ["rabbitmq-diagnostics", "-q", "ping"] }
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            exec: { command: ["rabbitmq-diagnostics", "-q", "check_port_connectivity"] }
+            periodSeconds: 15
+            timeoutSeconds: 10
+          resources: {{- toYaml .Values.rabbitmq.resources | nindent 12 }}
+          securityContext: {{- include "ems.containerSecurity" (dict) | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/rabbitmq }
+            - { name: config, mountPath: /etc/rabbitmq/conf.d/10-ems.conf, subPath: 10-ems.conf }
+      volumes:
+        - name: config
+          configMap: { name: rabbitmq }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: {{ .Values.rabbitmq.storage }} }

@@ -1,0 +1,11 @@
+# Lab: the 16 GB laptop (two 3 GB workers). Chart defaults are already lab-sized;
+# this overlay only pins the images to a tested commit.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - { name: ghcr.io/uchihaithachi/ems-api-gateway, newTag: c23988eee6a8f2649767bbf573247d7605e393cf }
+  - { name: ghcr.io/uchihaithachi/ems-employee-service, newTag: c23988eee6a8f2649767bbf573247d7605e393cf }
+  - { name: ghcr.io/uchihaithachi/ems-department-service, newTag: c23988eee6a8f2649767bbf573247d7605e393cf }
+  - { name: ghcr.io/uchihaithachi/ems-frontend, newTag: c23988eee6a8f2649767bbf573247d7605e393cf }

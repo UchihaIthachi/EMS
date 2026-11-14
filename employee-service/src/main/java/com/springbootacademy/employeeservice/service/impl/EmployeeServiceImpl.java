@@ -4,13 +4,12 @@ import com.springbootacademy.employeeservice.dto.DepartmentDTO;
 import com.springbootacademy.employeeservice.dto.EmployeeDTO;
 import com.springbootacademy.employeeservice.dto.ResponseEmpDepDto;
 import com.springbootacademy.employeeservice.entity.Employee;
+import com.springbootacademy.employeeservice.events.EmployeeEventPublisher;
 import com.springbootacademy.employeeservice.repo.EmployeeRepository;
 import com.springbootacademy.employeeservice.service.APIClient;
 import com.springbootacademy.employeeservice.service.EmployeeService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
@@ -20,8 +19,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private EmployeeRepository employeeRepository;
     private APIClient apiClient;
-    //private WebClient webClient;
-    //private RestTemplate restTemplate;
+    private EmployeeEventPublisher eventPublisher;
 
     @Override
     public EmployeeDTO saveEmployee(EmployeeDTO employeeDTO) {
@@ -37,6 +35,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         );
 
         Employee savedEmployee = employeeRepository.save(employee);
+        eventPublisher.employeeCreated(savedEmployee.getId(), savedEmployee.getEmail(), savedEmployee.getDepartmentCode());
 
         EmployeeDTO employeeDTO1 = new EmployeeDTO(
                 savedEmployee.getId(),

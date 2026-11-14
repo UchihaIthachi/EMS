@@ -1,12 +1,14 @@
-# Step 1: Build with Node
-FROM node:20-alpine as build
+# syntax=docker/dockerfile:1
+# Build the static site once on the build machine's architecture, then serve it with unprivileged nginx
+# (runs as a non-root user on port 8080, so it passes Pod Security "restricted").
+FROM --platform=$BUILDPLATFORM node:20-alpine AS build
 WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
-RUN npm install && npm run build
+RUN npm run build
 
-# Step 2: Serve with nginx
-FROM nginx:alpine
+FROM nginxinc/nginx-unprivileged:1.27-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY ./nginx/nginx.conf /etc/nginx/nginx.conf
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+EXPOSE 8080

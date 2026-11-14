@@ -1,0 +1,46 @@
+# Full: a bigger cluster (e.g. 3+ workers with 8 GB). More replicas, wider autoscaling, larger quota.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - { name: ghcr.io/uchihaithachi/ems-api-gateway, newTag: k8s-native }
+  - { name: ghcr.io/uchihaithachi/ems-employee-service, newTag: k8s-native }
+  - { name: ghcr.io/uchihaithachi/ems-department-service, newTag: k8s-native }
+  - { name: ghcr.io/uchihaithachi/ems-frontend, newTag: k8s-native }
+replicas:
+  - { name: api-gateway, count: 3 }
+  - { name: frontend, count: 2 }
+patches:
+  - target: { kind: HorizontalPodAutoscaler, name: employee-service }
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 6
+  - target: { group: keda.sh, kind: ScaledObject, name: department-service }
+    patch: |-
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 2
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 8
+  - target: { kind: ResourceQuota, name: ems }
+    patch: |-
+      - op: replace
+        path: /spec/hard/requests.memory
+        value: 12Gi
+      - op: replace
+        path: /spec/hard/limits.memory
+        value: 16Gi
+      - op: replace
+        path: /spec/hard/pods
+        value: "60"
+  - target: { kind: Deployment, name: "employee-service|department-service" }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 768Mi

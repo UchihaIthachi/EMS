@@ -6,7 +6,12 @@ import com.springbootacademy.departmentservice.repository.DepartmentRepository;
 import com.springbootacademy.departmentservice.service.DepartmentService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.springbootacademy.departmentservice.cache.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,7 +25,12 @@ public class DepartmentServiceIMPL implements DepartmentService {
 
 
     @Override
+    @CacheEvict(cacheNames = CacheConfig.DEPARTMENTS, key = "#departmentDTO.departmentCode")
     public DepartmentDTO saveDepartment(DepartmentDTO departmentDTO) {
+        // department_code is the business key other services refer to: it must be unique.
+        if (departmentDTO.getId() == 0 && departmentRepository.existsByDepartmentCode(departmentDTO.getDepartmentCode())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Department code already exists: " + departmentDTO.getDepartmentCode());
+        }
 
         Department department = new Department(
                 departmentDTO.getId(),
@@ -41,6 +51,7 @@ public class DepartmentServiceIMPL implements DepartmentService {
 
 
     @Override
+    @Cacheable(cacheNames = CacheConfig.DEPARTMENTS, key = "#code")
     public DepartmentDTO getDepartmentByCode(String code) {
         log.info("Start: getDepartmentByCode with code = {}", code);
 
@@ -58,7 +69,7 @@ public class DepartmentServiceIMPL implements DepartmentService {
             );
         } else {
             log.warn("No department found in DB for code: {}", code);
-            throw new RuntimeException("Department not found for code: " + code);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Department not found for code: " + code);
         }
     }
 

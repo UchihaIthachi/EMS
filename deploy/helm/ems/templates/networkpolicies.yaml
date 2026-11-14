@@ -1,0 +1,208 @@
+{{- if .Values.networkPolicy.enabled }}
+# 1. Default deny: nothing in or out unless a policy below allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ $.Release.Namespace }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# 2. Every pod may resolve DNS through CoreDNS.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: {{ $.Release.Namespace }}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+{{- range $name, $svc := .Values.services }}
+---
+# {{ $name }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: {{ $name }} }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        {{- range $svc.ingressFrom }}
+        {{- include "ems.peer" (dict "ctx" $ "peer" .) | nindent 8 }}
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: 8080 }
+  egress:
+    {{- range $svc.egressTo }}
+    - to:
+        - podSelector:
+            matchLabels: { app.kubernetes.io/name: {{ .app }} }
+      ports:
+        - { protocol: TCP, port: {{ .port }} }
+    {{- end }}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend
+  namespace: {{ $.Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: frontend }
+  policyTypes: [Ingress]
+  ingress:
+    - from: {{- include "ems.peer" (dict "ctx" $ "peer" "gateway") | nindent 8 }}
+      ports:
+        - { protocol: TCP, port: 8080 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mysql
+  namespace: {{ $.Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: mysql }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: employee-service } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: department-service } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: mysql-backup } }
+      ports:
+        - { protocol: TCP, port: 3306 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rabbitmq
+  namespace: {{ $.Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: rabbitmq }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: employee-service } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: department-service } }
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: keda } }
+      ports:
+        - { protocol: TCP, port: 5672 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis
+  namespace: {{ $.Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: redis }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: department-service } }
+      ports:
+        - { protocol: TCP, port: 6379 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mysql-backup
+  namespace: {{ $.Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: mysql-backup }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: mysql } }
+      ports:
+        - { protocol: TCP, port: 3306 }
+{{- if .Values.gateway.enabled }}
+---
+# Gateway proxy (Envoy): reachable from anywhere, may call the two frontends and its control plane.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway-proxy
+  namespace: {{ $.Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: {{- toYaml .Values.gateway.proxyPodLabels | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - {}
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: frontend } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: api-gateway } }
+      ports:
+        - { protocol: TCP, port: 8080 }
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Values.gateway.controllerNamespace }} }
+{{- end }}
+{{- end }}
+{{- if and .Values.networkPolicy.enabled .Values.metrics.enabled }}
+---
+# Prometheus (namespace {{ .Values.metrics.namespace }}) may scrape the Spring services on 8080.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-metrics-scrape
+  namespace: {{ $.Release.Namespace }}
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [{{ keys .Values.services | sortAlpha | join ", " }}]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Values.metrics.namespace }} }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: prometheus }
+      ports:
+        - { protocol: TCP, port: 8080 }
+{{- end }}
+{{- if and .Values.networkPolicy.enabled .Values.tracing.enabled }}
+---
+# Spring services may send OTLP/HTTP spans to the collector in {{ .Values.tracing.namespace }}.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-tracing-egress
+  namespace: {{ $.Release.Namespace }}
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: [{{ keys .Values.services | sortAlpha | join ", " }}]
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Values.tracing.namespace }} }
+          podSelector:
+            matchLabels: { app.kubernetes.io/name: {{ .Values.tracing.collectorLabel }} }
+      ports:
+        - { protocol: TCP, port: 4318 }
+{{- end }}

@@ -1,0 +1,39 @@
+# Jaeger v2 all-in-one (in-memory storage) for the tracing demo. OTLP/HTTP 4318, UI 16686.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+  namespace: monitoring
+  labels: { app.kubernetes.io/name: jaeger }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: jaeger } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: jaeger } }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: jaeger
+          image: docker.io/jaegertracing/jaeger:2.23.0
+          ports:
+            - { name: otlp-http, containerPort: 4318 }
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: ui, containerPort: 16686 }
+          readinessProbe: { tcpSocket: { port: ui }, periodSeconds: 5 }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          resources:
+            requests: { cpu: 25m, memory: 96Mi }
+            limits: { memory: 384Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+  namespace: monitoring
+  labels: { app.kubernetes.io/name: jaeger }
+spec:
+  selector: { app.kubernetes.io/name: jaeger }
+  ports:
+    - { name: otlp-http, port: 4318, targetPort: otlp-http }
+    - { name: otlp-grpc, port: 4317, targetPort: otlp-grpc }
+    - { name: ui, port: 16686, targetPort: ui }

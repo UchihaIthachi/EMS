@@ -1,0 +1,59 @@
+# Human access inside this namespace. Users are created with CSRs (see docs/runbook).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ems-developer
+  namespace: {{ $.Release.Namespace }}
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log, services, endpoints, configmaps, events, persistentvolumeclaims]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets, statefulsets]
+    verbs: [get, list, watch]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ems-operator
+  namespace: {{ $.Release.Namespace }}
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log, services, endpoints, configmaps, events, persistentvolumeclaims]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods/exec, pods/portforward]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [delete]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets, statefulsets]
+    verbs: [get, list, watch, patch]
+  - apiGroups: [apps]
+    resources: [deployments/scale, statefulsets/scale]
+    verbs: [get, update, patch]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ems-developer
+  namespace: {{ $.Release.Namespace }}
+subjects:
+  - { kind: User, name: {{ .Values.rbac.developerUser }}, apiGroup: rbac.authorization.k8s.io }
+roleRef: { kind: Role, name: ems-developer, apiGroup: rbac.authorization.k8s.io }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ems-operator
+  namespace: {{ $.Release.Namespace }}
+subjects:
+  - { kind: User, name: {{ .Values.rbac.operatorUser }}, apiGroup: rbac.authorization.k8s.io }
+roleRef: { kind: Role, name: ems-operator, apiGroup: rbac.authorization.k8s.io }

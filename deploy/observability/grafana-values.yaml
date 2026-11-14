@@ -1,0 +1,28 @@
+# grafana-community/grafana. Admin password is generated into Secret monitoring/grafana.
+persistence: { enabled: false }
+resources:
+  requests: { cpu: 25m, memory: 128Mi }
+  limits: { memory: 384Mi }   # measured 252Mi at idle
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        url: http://prometheus-server.monitoring.svc
+        isDefault: true
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - { name: default, orgId: 1, folder: EMS, type: file, disableDeletion: false, options: { path: /var/lib/grafana/dashboards/default } }
+dashboards:
+  default:
+    jvm-micrometer:          # grafana.com dashboard 4701 "JVM (Micrometer)"
+      gnetId: 4701
+      revision: 10
+      # The dashboard refers to ${DS_PROMETHEUS}; map it to our datasource uid.
+      datasource:
+        - { name: DS_PROMETHEUS, value: prometheus }
+    # ems-overview: our own dashboard, file-provided by metrics.sh (--set-file)

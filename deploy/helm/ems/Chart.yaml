@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ems
+description: Employee Management System on Kubernetes (services, MySQL, RabbitMQ, Redis, Gateway API, KEDA)
+type: application
+version: 0.1.0
+appVersion: "k8s-native"

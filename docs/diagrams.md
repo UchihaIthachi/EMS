@@ -1,0 +1,631 @@
+# EMS architecture atlas
+
+Every diagram of the system in one place: request paths, resilience, messaging, Kubernetes, scaling, delivery, operations. All diagrams are Mermaid, so they render on GitHub and are diffed like code. The numbers come from the code, the Helm values, or measured runs on the lab cluster ([README](../README.md#verified-behaviour)).
+
+| # | Diagram | Answers |
+|---|---|---|
+| 1 | [System context](#1-system-context) | Who talks to what |
+| 2 | [Containers](#2-containers) | Services, stores, ports, protocols |
+| 3 | [Read path](#3-read-path-get-employee) | What happens on `GET /employee/{id}` |
+| 4 | [Write path](#4-write-path-post-employee) | What happens on `POST /employee` |
+| 5 | [Circuit breaker states](#5-circuit-breaker-state-machine) | When department calls are cut off and retried |
+| 6 | [Circuit breaker algorithm](#6-circuit-breaker-decision-per-call) | The per-call decision, with the real settings |
+| 7 | [Cache-aside](#7-cache-aside-with-fail-open) | Redis read, miss, evict, Redis down |
+| 8 | [Messaging topology](#8-rabbitmq-topology) | Exchanges, queues, DLX, DLQ |
+| 9 | [Message lifecycle](#9-message-lifecycle-retries-and-dlq) | Retries, poison messages, dead letters |
+| 10 | [Idempotent consumer](#10-idempotent-consumer) | Why a redelivered event never counts twice |
+| 11 | [Data model](#11-data-model) | Tables per database |
+| 12 | [Cluster topology](#12-cluster-topology) | Nodes and what runs where |
+| 13 | [Objects per service](#13-kubernetes-objects-for-one-service) | Every Kubernetes object behind one service |
+| 14 | [Traffic path](#14-traffic-path) | Browser to pod, hop by hop |
+| 15 | [NetworkPolicy graph](#15-networkpolicy-allowed-flows) | The only flows default-deny lets through |
+| 16 | [HPA loop](#16-cpu-autoscaling-hpa) | CPU-based scaling |
+| 17 | [KEDA loop](#17-queue-autoscaling-keda) | Queue-based scaling |
+| 18 | [Rollout and drain](#18-rolling-update-and-node-drain) | Zero-downtime deploys and maintenance |
+| 19 | [Delivery pipeline](#19-delivery-pipeline) | Commit to running pods |
+| 20 | [Observability](#20-observability-data-flow) | Metrics, traces, logs |
+| 21 | [Security layers](#21-security-in-depth) | Defence in depth |
+| 22 | [Failure modes](#22-failure-modes) | What breaks, what users see |
+| 23 | [Memory budget](#23-memory-budget-on-the-lab) | Where the RAM goes |
+| 24 | [Cluster operations](#24-cluster-operations) | Upgrade, etcd backup, cert renewal |
+| 25 | [Scaling path](#25-scaling-path) | What changes at 10x and 100x |
+
+---
+
+## 1. System context
+
+```mermaid
+flowchart LR
+  user([HR user<br/>browser])
+  dev([Developer])
+  ops([Operator / SRE])
+  subgraph ems[EMS]
+    app[Employee Management System]
+  end
+  gh[(GitHub<br/>Actions + GHCR)]
+  obs[Prometheus · Grafana · Jaeger]
+
+  user -->|HTTP: manage employees,<br/>departments| app
+  dev -->|git push| gh
+  gh -->|multi-arch images,<br/>tagged by commit SHA| app
+  ops -->|helm, kubectl,<br/>runbook drills| app
+  app -->|metrics, traces| obs
+  ops -->|dashboards, traces| obs
+```
+
+## 2. Containers
+
+```mermaid
+flowchart TB
+  browser([Browser])
+  subgraph edge[Edge]
+    gw[Gateway API<br/>kgateway Envoy proxy]
+    fe[frontend<br/>React SPA on nginx :8080]
+    apigw[api-gateway<br/>Spring Cloud Gateway :8080<br/>2 replicas]
+  end
+  subgraph svc[Domain services]
+    emp[employee-service :8080<br/>Spring Boot 2.7, JPA, Feign,<br/>Resilience4j, AMQP producer]
+    dep[department-service :8080<br/>Spring Boot 2.7, JPA, Redis cache,<br/>AMQP consumer, CQRS read model]
+  end
+  subgraph data[Data]
+    mysql[(MySQL 8.4 :3306<br/>employee_db · department_db)]
+    mq[[RabbitMQ 3.13 :5672<br/>ems.events]]
+    redis[(Redis 7 :6379<br/>departments cache)]
+  end
+
+  browser --> gw
+  gw -->|/| fe
+  gw -->|/api/*, /*-service/*| apigw
+  apigw -->|HTTP| emp
+  apigw -->|HTTP| dep
+  emp -->|Feign HTTP<br/>circuit breaker| dep
+  emp -->|JDBC| mysql
+  dep -->|JDBC| mysql
+  emp -->|publish employee.created| mq
+  mq -->|consume| dep
+  dep -->|GET / SET / DEL| redis
+```
+
+Each service owns its database: `employee` can only reach `employee_db`, and `department` only `department_db`. They share one MySQL server to save memory on the lab.
+
+## 3. Read path: GET employee
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant B as Browser
+  participant G as kgateway (Envoy)
+  participant A as api-gateway
+  participant E as employee-service
+  participant CB as Circuit breaker<br/>(Resilience4j)
+  participant D as department-service
+  participant R as Redis
+  participant M as MySQL
+
+  B->>G: GET /api/v1/employee-service/42
+  G->>A: HTTPRoute match /api
+  A->>E: route employee-api
+  E->>M: SELECT employee 42 (employee_db)
+  M-->>E: row (departmentCode=ENG)
+  E->>CB: getDepartmentById("ENG")
+  alt circuit CLOSED or HALF_OPEN (permitted)
+    CB->>D: Feign GET /api/v1/department-controller/ENG (3 s limit)
+    D->>R: GET departments::ENG
+    alt cache hit
+      R-->>D: Department
+    else cache miss
+      R-->>D: (nil)
+      D->>M: SELECT department ENG (department_db)
+      M-->>D: row
+      D->>R: SET departments::ENG (TTL 10 min)
+    end
+    D-->>CB: 200 DepartmentDTO
+    CB-->>E: DepartmentDTO
+  else circuit OPEN, timeout or error
+    CB-->>E: fallback → null (no remote call)
+  end
+  E-->>A: 200 {employeeDTO, departmentDTO or null}
+  A-->>G: 200
+  G-->>B: 200
+```
+
+Measured: one traced request was 46–110 ms end to end, 10–14 spans across 3 services ([trace screenshot](img/trace.png)). Under k6 load, p95 was 13–25 ms.
+
+## 4. Write path: POST employee
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant B as Browser
+  participant A as api-gateway
+  participant E as employee-service
+  participant M as MySQL
+  participant Q as RabbitMQ
+  participant D as department-service
+
+  B->>A: POST /api/v1/employee-service
+  A->>E: forward
+  E->>M: INSERT employee (employee_db)
+  M-->>E: id
+  E-)Q: publish employee.created {eventId, employeeId, departmentCode}
+  Note over E,Q: best-effort: a broker outage is logged,<br/>the request still succeeds
+  E-->>A: 201 Created
+  A-->>B: 201 Created
+  Q-)D: deliver (prefetch 10)
+  D->>M: BEGIN · mark eventId processed · upsert department_stats · COMMIT
+  D-->>Q: ack
+```
+
+The HTTP response doesn't wait for the stats update: `GET /department-controller/ENG/stats` is eventually consistent. The trade-off between best-effort publishing and a transactional outbox is in [architecture.md](architecture.md#design-decisions-and-trade-offs).
+
+## 5. Circuit breaker state machine
+
+```mermaid
+stateDiagram-v2
+  direction LR
+  [*] --> CLOSED
+  CLOSED --> OPEN: failure or slow-call rate ≥ 50%<br/>over last 10 calls (min 5)
+  OPEN --> HALF_OPEN: after 15 s
+  HALF_OPEN --> CLOSED: 2 trial calls OK
+  HALF_OPEN --> OPEN: 2 trial calls fail
+  note right of CLOSED: calls go through,<br/>each result is recorded
+  note right of OPEN: no network call,<br/>fallback immediately
+```
+
+These settings come from `employee-service` `application.properties`:
+
+| Setting | Value | Why |
+|---|---|---|
+| `sliding-window-type` / `size` | COUNT_BASED / 10 | Small and predictable on a lab with low traffic |
+| `minimum-number-of-calls` | 5 | Don't trip on one or two early errors |
+| `failure-rate-threshold` | 50% | Half the calls failing means the dependency is down |
+| `slow-call-duration-threshold` / `rate` | 2 s / 50% | A slow dependency is treated like a failing one |
+| `wait-duration-in-open-state` | 15 s | Gives department-service time to restart |
+| `permitted-number-of-calls-in-half-open-state` | 2 | Cheap probe before reopening the floodgates |
+| `timelimiter.timeout-duration` | 3 s | Matches Feign's read timeout; no thread waits longer |
+
+Drill (`deploy/drills/section-e.sh`): KEDA paused department-service at 0 pods → employee GET kept returning 200 with `departmentDTO: null` → after scale-up, the circuit closed and department data came back.
+
+## 6. Circuit breaker decision per call
+
+```mermaid
+flowchart TD
+  start([employee-service calls<br/>getDepartmentById]) --> state{Circuit state?}
+  state -->|OPEN, under 15 s| fb[Fallback: return null<br/>log warning]
+  state -->|OPEN, 15 s passed| half[→ HALF_OPEN]
+  half --> permit{Fewer than 2<br/>trial calls so far?}
+  permit -->|no| fb
+  permit -->|yes| fcall
+  state -->|CLOSED| fcall[Feign call with<br/>3 s time limiter]
+  fcall --> res{Result}
+  res -->|2xx under 2 s| ok[Record success]
+  res -->|2xx over 2 s| slow[Record slow call]
+  res -->|error or timeout| err[Record failure]
+  err --> fb
+  ok --> eval
+  slow --> eval
+  err --> eval{"Window has ≥ 5 calls and<br/>failure % ≥ 50 or slow % ≥ 50?"}
+  eval -->|yes| open[→ OPEN for 15 s]
+  eval -->|no| stay[stay in current state]
+  ok --> ret([Return DepartmentDTO])
+  slow --> ret
+```
+
+The fallback is graceful degradation: the employee is still returned, just without department details. The caller gets a 200 response, not a 500 or a 30-second hang.
+
+## 7. Cache-aside with fail-open
+
+```mermaid
+flowchart TD
+  subgraph read["Read: GET department {code}"]
+    r1([request]) --> r2{Redis GET<br/>departments::code}
+    r2 -->|hit| r3([return cached])
+    r2 -->|miss| r4[SELECT from department_db]
+    r4 --> r5[Redis SET, TTL 10 min]
+    r5 --> r6([return])
+    r2 -->|Redis error| r7[CacheErrorHandler:<br/>log, treat as miss]
+    r7 --> r4
+  end
+  subgraph write["Write: POST/PUT department"]
+    w1([request]) --> w2[INSERT/UPDATE department_db<br/>409 on duplicate code]
+    w2 --> w3[Redis DEL departments::code<br/>@CacheEvict]
+    w3 --> w4([return])
+    w3 -.->|Redis error| w5[log, continue]
+  end
+```
+
+Redis is an optimisation, never a dependency. Its health check is disabled (`management.health.redis.enabled=false`), so a Redis outage never takes department pods out of the Service. Evicting instead of updating avoids a race where two writers leave the cache stale.
+
+## 8. RabbitMQ topology
+
+```mermaid
+flowchart LR
+  prod[employee-service<br/>RabbitTemplate] -->|routing key<br/>employee.created| ex{{ems.events<br/>topic, durable}}
+  ex -->|binding<br/>employee.created| queue[("department.employee-events<br/>durable queue<br/>x-dead-letter-exchange = ems.events.dlx")]
+  queue -->|prefetch 10| cons["department-service<br/>@RabbitListener"]
+  queue -. rejected after retries .-> dlx{{ems.events.dlx<br/>direct}}
+  dlx -->|routing key<br/>department.employee-events.dlq| dlq[(department.employee-events.dlq<br/>durable, for inspection / replay)]
+  kedas[KEDA rabbitmq scaler] -. reads queue length .-> queue
+```
+
+The topic exchange means a future consumer (for example, notifications) can bind `employee.*` without touching the producer.
+
+## 9. Message lifecycle, retries and DLQ
+
+```mermaid
+stateDiagram-v2
+  [*] --> Ready: published to queue
+  Ready --> Unacked: delivered to a consumer
+  Unacked --> Acked: handler commits
+  Acked --> [*]
+  Unacked --> Retry: exception (transient, e.g. DB down or deadlock)
+  Retry --> Unacked: attempt 2, attempt 3<br/>(listener retry, max-attempts 3)
+  Retry --> DeadLettered: still failing after 3 attempts<br/>(default-requeue-rejected = false)
+  Unacked --> DeadLettered: invalid event<br/>AmqpRejectAndDontRequeueException<br/>(no retries)
+  Unacked --> Ready: consumer pod dies before ack<br/>(redelivered, possibly twice)
+  DeadLettered --> [*]: sits in the .dlq<br/>for inspection
+```
+
+Two kinds of failure are handled on purpose:
+- **Transient failures** are retried 3 times in the consumer.
+- **Poison messages** go straight to the DLQ, so they can't block the queue.
+
+Redelivery after a pod crash is the reason the consumer has to be idempotent.
+
+## 10. Idempotent consumer
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Q as RabbitMQ
+  participant H as EmployeeEventHandler<br/>@Transactional
+  participant P as processed_events
+  participant S as department_stats
+
+  Q->>H: employee.created {eventId: e-1, departmentCode: ENG}
+  H->>P: INSERT IGNORE (event_id = e-1)
+  P-->>H: 1 row (first time)
+  H->>S: INSERT … ON DUPLICATE KEY UPDATE count = count + 1
+  H-->>Q: commit, then ack
+  Note over Q,H: the pod dies before the ack arrives,<br/>so the broker redelivers e-1
+  Q->>H: employee.created {eventId: e-1}
+  H->>P: INSERT IGNORE (event_id = e-1)
+  P-->>H: 0 rows (already processed)
+  H-->>Q: ack, stats untouched
+```
+
+The dedupe row and the stats update commit in **one** database transaction, so either both happen or neither does. That is effectively-once processing on top of an at-least-once broker.
+
+## 11. Data model
+
+```mermaid
+erDiagram
+  EMPLOYEES {
+    bigint id PK
+    varchar first_name
+    varchar last_name
+    varchar email UK
+    varchar department_code "logical FK, not enforced across DBs"
+    varchar position
+    double salary
+    date hire_date
+  }
+  DEPARTMENTS {
+    int id PK
+    varchar name
+    varchar description
+    varchar department_code UK "unique since runbook 3"
+  }
+  PROCESSED_EVENTS {
+    varchar event_id PK
+    timestamp processed_at
+  }
+  DEPARTMENT_STATS {
+    varchar department_code PK
+    bigint employee_count
+  }
+  DEPARTMENTS ||--o{ EMPLOYEES : "department_code (cross-service)"
+  DEPARTMENTS ||--o| DEPARTMENT_STATS : "read model"
+```
+
+`employees` lives in `employee_db`; the other three tables live in `department_db`. The link between employees and departments is a code, not a foreign key. Each service owns its data, and the reference is checked over HTTP.
+
+## 12. Cluster topology
+
+```mermaid
+flowchart TB
+  mac([MacBook, 16 GB<br/>kubectl, helm, k6, browser])
+  subgraph lima[Lima VMs, user-v2 network]
+    subgraph cp1[lima-cp1 · 2.5 GB · control plane]
+      api[kube-apiserver :6443]
+      etcd[(etcd)]
+      sch[scheduler]
+      cm[controller-manager]
+      dns[CoreDNS ×2]
+    end
+    subgraph w1[lima-w1 · 3 GB]
+      w1p[ems pods<br/>calico-node · kube-proxy]
+    end
+    subgraph w2[lima-w2 · 3 GB]
+      w2p[ems pods<br/>calico-node · kube-proxy]
+    end
+  end
+  mac -->|127.0.0.1:6443<br/>cert SAN| api
+  mac -->|kubectl port-forward| w1p
+  api --- etcd
+  api --- w1p
+  api --- w2p
+
+```
+
+Namespaces:
+- `ems`: the app, with Pod Security `restricted` enforced
+- `monitoring`: Prometheus, Grafana, Jaeger
+- platform: `keda`, `kgateway-system`, `calico-system`, `local-path-storage`
+
+Kubernetes v1.37.2 (kubeadm), Calico (pod CIDR 10.244.0.0/16), metrics-server, local-path StorageClass, Gateway API v1.7 with kgateway v2.5, KEDA.
+
+## 13. Kubernetes objects for one service
+
+```mermaid
+flowchart LR
+  subgraph emp[employee-service]
+    dep[Deployment<br/>RollingUpdate maxSurge 1, maxUnavailable 0]
+    rs[ReplicaSet]
+    pod[Pod<br/>init: wait-for mysql<br/>app: JVM 448Mi limit]
+    svc[Service ClusterIP :8080]
+    eps[EndpointSlice<br/>ready pods only]
+    cmap[ConfigMap<br/>env, JAVA_TOOL_OPTIONS]
+    sec[Secret mysql / rabbitmq]
+    sa[ServiceAccount<br/>no token mounted]
+    hpa[HPA 1–2, CPU 70%]
+    pdb[PDB minAvailable 1]
+    np[NetworkPolicy<br/>in: api-gateway<br/>out: dept, mysql, rabbitmq]
+  end
+  dep --> rs --> pod
+  svc --> eps --> pod
+  cmap -->|envFrom| pod
+  sec -->|secretKeyRef| pod
+  sa --> pod
+  hpa -->|scale| dep
+  pdb -. guards evictions .-> pod
+  np -. selects .-> pod
+  pc[PriorityClass ems-app] --> pod
+  q[ResourceQuota + LimitRange<br/>namespace-wide] -. admits .-> pod
+```
+
+**Probes:**
+- **startup:** liveness path, up to 4 minutes (JVM plus agent)
+- **liveness:** `/actuator/health/liveness`
+- **readiness:** `/actuator/health/readiness`, which includes the DB, plus RabbitMQ for department
+
+**Pod security:** non-root uid 10001, read-only root filesystem except `/tmp`, all capabilities dropped, seccomp `RuntimeDefault`.
+
+## 14. Traffic path
+
+```mermaid
+flowchart LR
+  b([Browser]) -->|127.0.0.1:18080| pf[kubectl port-forward]
+  pf --> s[Service ems<br/>created by kgateway]
+  s --> envoy[Envoy proxy pod<br/>Gateway 'ems', listener :80]
+  envoy -->|HTTPRoute rule 1<br/>PathPrefix /api, /employee-service,<br/>/department-service| ag[Service api-gateway :8080]
+  envoy -->|HTTPRoute rule 2<br/>PathPrefix /| fe[Service frontend :80]
+  ag -->|kube-proxy iptables| agp[api-gateway pods ×2]
+  agp -->|Spring Cloud Gateway route<br/>by path| es[Service employee-service]
+  agp --> ds[Service department-service]
+```
+
+There are two routing layers on purpose:
+- **Gateway API** does platform-level, path-based routing. It can be swapped for any implementation.
+- **Spring Cloud Gateway** handles routing that belongs to the application.
+
+## 15. NetworkPolicy allowed flows
+
+```mermaid
+flowchart LR
+  proxy[Gateway proxy] --> fe[frontend]
+  proxy --> ag[api-gateway]
+  ag --> emp[employee-service]
+  ag --> dep[department-service]
+  emp --> dep
+  emp --> mysql[(mysql)]
+  dep --> mysql
+  emp --> mq[[rabbitmq]]
+  dep --> mq
+  dep --> redis[(redis)]
+  bk[mysql-backup CronJob] --> mysql
+  keda[keda namespace] --> mq
+  prom[monitoring/prometheus] -.->|:8080 scrape| ag & emp & dep
+  emp & dep & ag -.->|:4318 OTLP<br/>when tracing on| jaeger[monitoring/jaeger]
+  all[every pod] -->|UDP/TCP 53| dns[kube-system/CoreDNS]
+```
+
+Everything else is denied in both directions (`default-deny-all`). Drill: a pod without an allow rule times out on MySQL, while api-gateway reaches employee-service. Runbook 11 shows what a single wrong port does to DNS.
+
+## 16. CPU autoscaling (HPA)
+
+```mermaid
+sequenceDiagram
+  participant K6 as k6 load
+  participant P as employee-service pods
+  participant MS as metrics-server
+  participant H as HPA controller
+  participant D as Deployment
+
+  K6->>P: requests
+  loop every 15 s
+    H->>MS: CPU usage of the pods
+    MS-->>H: 78% of request (target 70%)
+    H->>H: desired = ceil(1 × 78 / 70) = 2
+    H->>D: scale replicas 1 → 2 (max 2 on the lab)
+  end
+  Note over H,D: scale-down waits a 5-minute stabilisation window
+```
+
+`desiredReplicas = ceil(currentReplicas × currentMetric / targetMetric)`. Measured in the drill: 1 → 2 at 78% CPU.
+
+## 17. Queue autoscaling (KEDA)
+
+```mermaid
+flowchart LR
+  mq[(department.employee-events<br/>queue length)] -->|poll| ko[KEDA operator<br/>rabbitmq scaler]
+  ta[TriggerAuthentication<br/>amqp URI from Secret] --> ko
+  ko -->|external metric| ma[KEDA metrics API<br/>external.metrics.k8s.io]
+  ko -->|creates and owns| hpa[HPA keda-hpa-department-service]
+  ma --> hpa
+  hpa -->|"desired = ceil(queue / 20)<br/>clamped 1–2"| d[Deployment department-service]
+  ko -->|"0 ↔ 1 activation<br/>(when min = 0)"| d
+```
+
+Measured in the drill: with an artificial consumer delay (`ems.events.consumer-delay-ms`), the queue reached 94 messages → 2 pods (`ceil(94 / 20) = 5`, capped at max 2), then drained to 0. The DLQ stayed empty.
+
+## 18. Rolling update and node drain
+
+```mermaid
+sequenceDiagram
+  participant H as helm upgrade
+  participant D as Deployment
+  participant N as new pod
+  participant O as old pod
+  participant S as Service endpoints
+  participant K as kubectl drain
+  participant PDB as PodDisruptionBudget
+
+  H->>D: new pod template (image SHA, config checksum)
+  D->>N: create (maxSurge 1)
+  N->>N: startup → readiness probe passes
+  N->>S: added to EndpointSlice
+  D->>O: terminate (maxUnavailable 0)
+  O->>S: removed from EndpointSlice
+  O->>O: preStop sleep 5 s, graceful shutdown 20 s
+  Note over D,O: a bad image or failing readiness stops here,<br/>the old pod keeps serving (runbook 9, 10, 19)
+
+  K->>PDB: evict api-gateway pod on lima-w2
+  PDB-->>K: allowed (2 running, minAvailable 1)
+  K->>PDB: evict the second one
+  PDB-->>K: 429 refused until the replacement is Ready
+```
+
+Drill: 103 of 103 requests succeeded while a node was drained.
+
+## 19. Delivery pipeline
+
+```mermaid
+flowchart LR
+  dev([git push<br/>main or k8s-native]) --> ga[GitHub Actions<br/>matrix: 4 services]
+  ga --> mvn[Maven package on<br/>build platform]
+  mvn --> bx[docker buildx<br/>linux/amd64 + linux/arm64]
+  bx --> ghcr[(GHCR<br/>ems-*:full-SHA<br/>ems-*:branch name)]
+  ghcr --> ld[lab-deploy.sh<br/>waits for images of HEAD]
+  ld --> helm[helm upgrade --install<br/>--force-conflicts<br/>image.tag = SHA]
+  helm --> roll[rollout status<br/>per Deployment]
+  roll --> smoke[smoke test via Gateway:<br/>200, 409, cache, Feign, event → stats]
+  smoke -->|fail| stop([stop, show failing<br/>pod's previous log])
+  smoke -->|pass| done([deployed])
+  kz[Kustomize overlays<br/>lab · full] -. same chart via helmCharts .-> helm
+```
+
+Images are tagged by commit SHA, never `:latest`, so a rollout always means a real change and is easy to roll back. Kustomize renders the same chart for other environments.
+
+## 20. Observability data flow
+
+```mermaid
+flowchart LR
+  subgraph pods[EMS pods]
+    act[/actuator/prometheus<br/>Micrometer, tag application=…/]
+    otel[OpenTelemetry Java agent<br/>off by default]
+    out[stdout logs]
+  end
+  prom[Prometheus<br/>kubernetes-pods SD,<br/>prometheus.io/scrape annotations] -->|scrape 30 s| act
+  graf[Grafana<br/>EMS overview + JVM dashboards] -->|PromQL| prom
+  otel -->|OTLP/HTTP :4318| jaeger[Jaeger v2<br/>in-memory]
+  out --> kl[kubectl logs /<br/>--previous]
+  user([SRE]) --> graf
+  user --> jaeger
+  user --> kl
+```
+
+**What each signal answers:**
+- **Metrics:** is it healthy? (rate, errors, latency, heap, CPU, pods per service, queue throughput)
+- **Traces:** where did the time go?
+- **Logs:** why did it fail?
+
+Screenshots: [Grafana](img/grafana.png), [Jaeger](img/trace.png).
+
+## 21. Security in depth
+
+```mermaid
+flowchart TB
+  l1[Supply chain:<br/>images built in CI, pinned by SHA,<br/>non-root uid 10001] --> l2
+  l2[Admission:<br/>Pod Security 'restricted' enforced,<br/>ResourceQuota + LimitRange] --> l3
+  l3[Runtime:<br/>runAsNonRoot, no privilege escalation,<br/>drop ALL capabilities, seccomp RuntimeDefault,<br/>no ServiceAccount token mounted] --> l4
+  l4[Network:<br/>default-deny NetworkPolicies,<br/>one allow rule per flow] --> l5
+  l5[Identity:<br/>RBAC Roles; ems-developer read-only,<br/>ems-operator scale/exec, no Secrets;<br/>users via CSR-signed certs] --> l6
+  l6[Secrets:<br/>Kubernetes Secrets, git-ignored values files,<br/>Kustomize secretGenerator; nothing in git]
+```
+
+## 22. Failure modes
+
+| Failure | What users see | Why | Proof |
+|---|---|---|---|
+| department-service down | Employee pages load, department shows empty | Circuit breaker + fallback | section-e drill |
+| department-service slow (> 3 s) | Same as down, after 3 s at most | Time limiter | config |
+| Redis down | Everything works, a bit slower | Fail-open cache, Redis not in readiness | runbook 14 |
+| RabbitMQ down | Employee create still 201; stats stop updating | Best-effort publish | design choice |
+| Poison message | One message in the DLQ, the rest flow | Reject without requeue | `EmployeeEventHandler` |
+| Duplicate delivery | Stats count once | Idempotent consumer | diagram 10 |
+| Bad image / bad config | Nothing; the old pods keep serving | Rolling update with readiness gates | runbook 9, 10, 19 |
+| Node lost or drained | Nothing for api-gateway (2 replicas, spread, PDB) | Topology spread + PDB | drain drill |
+| DNS policy broken | New connections fail | Default-deny + explicit DNS allow | runbook 11 |
+| CoreDNS down | New lookups fail cluster-wide | Single dependency | runbook 16 |
+| MySQL down | Reads and writes fail; pods go not-ready | Single instance (lab) | scaling path |
+
+## 23. Memory budget on the lab
+
+```mermaid
+pie showData title Measured memory (MiB) under load, namespace ems + monitoring
+  "api-gateway ×2" : 463
+  "employee-service" : 271
+  "department-service" : 277
+  "MySQL" : 222
+  "RabbitMQ" : 114
+  "Prometheus" : 246
+  "Grafana" : 252
+  "Gateway proxy + frontend + Redis" : 37
+```
+
+The JVMs are capped at 448 MiB (`MaxRAMPercentage=70`, SerialGC). The namespace quota is 4 GiB requests / 5 GiB limits, and 10 pods used 2.4 GiB of requests. Two 3 GB workers leave headroom for one extra replica per service.
+
+## 24. Cluster operations
+
+```mermaid
+flowchart TB
+  subgraph upgrade[kubeadm upgrade v1.36.6 → v1.37.2]
+    u1[etcd snapshot first] --> u2[cp1: kubeadm upgrade plan / apply]
+    u2 --> u3[cp1: kubelet + kubectl, restart]
+    u3 --> u4[each worker: drain → kubeadm upgrade node<br/>→ kubelet → uncordon]
+    u4 --> u5[PDBs hold during drains,<br/>EMS stays up]
+  end
+  subgraph etcd[etcd backup and restore]
+    e1[etcdctl snapshot save] --> e2[delete a marker object]
+    e2 --> e3[snapshot restore to a new data dir]
+    e3 --> e4[point the static pod at it,<br/>marker is back]
+    e4 --> e5[swap the data dir back,<br/>fix peer URL before the next upgrade]
+  end
+  subgraph certs[Certificates]
+    c1[kubeadm certs check-expiration] --> c2[kubeadm certs renew apiserver]
+    c2 --> c3[move the static pod manifest out and back]
+    c3 --> c4[served notAfter = file notAfter]
+  end
+```
+
+## 25. Scaling path
+
+```mermaid
+flowchart LR
+  now[Lab today<br/>1 MySQL, 1 RabbitMQ, 1 Redis<br/>HPA/KEDA max 2] --> x10
+  x10["10×<br/>managed MySQL with read replica,<br/>RabbitMQ quorum queues (3 nodes),<br/>Redis replica, HPA/KEDA max 6–8<br/>(Kustomize 'full' overlay)"] --> x100
+  x100["100×<br/>transactional outbox + CDC instead of best-effort publish,<br/>separate DB servers per service,<br/>Kafka for the event log, rate limits at the Gateway,<br/>multi-AZ nodes, HA control plane"]
+```
+
+The trade-offs at each step are discussed in [architecture.md](architecture.md#scaling-path-what-would-change-at-100x).

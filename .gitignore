@@ -1,3 +1,10 @@
 deploy/.env
 deploy/nginx-logs/
 *.log
+
+# Helm secrets
+*.local.yaml
+deploy/kustomize/base/secrets.env
+deploy/compose/.env
+.idea/
+docs/site/dist/

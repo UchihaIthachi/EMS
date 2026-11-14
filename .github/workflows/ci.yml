@@ -1,70 +1,60 @@
-name: CI Workflow
+name: Build images
 
+# Builds multi-arch (amd64 + arm64) images and pushes them to GHCR.
+# Tags: the commit SHA (used by the Helm chart) and the branch name.
 on:
   push:
-    branches: [main, deploy]
+    branches: [main, k8s-native]
   pull_request:
-    branches: [main, deploy]
+    branches: [main]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME_PREFIX: ${{ github.repository_owner }}
 
 jobs:
-  build_and_push_images:
+  image:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [api-gateway, employee-service, department-service, frontend]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
-        with:
-          java-version: "17"
-          distribution: "temurin"
+      - name: Lower-case image owner
+        run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
 
-      - name: Cache Maven packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Build all services with Maven
-        run: |
-          for dir in service-registry config-server api-gateway department-service employee-service; do
-            if [ -f "$dir/pom.xml" ]; then
-              echo "📦 Building $dir"
-              (cd "$dir" && mvn clean package -DskipTests)
-            else
-              echo "⚠️  Skipping $dir (no pom.xml found)"
-            fi
-          done
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v2
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push images
-        run: |
-          chmod +x cicd.sh
-          ./cicd.sh build_and_push
-        env:
-          GIT_COMMIT_SHA: ${{ github.sha }}
-          # Optional secrets if needed for private repos or database access
-          # GIT_PAT: ${{ secrets.GIT_PAT }}
-          # MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+      - name: Image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/ems-${{ matrix.service }}
+          tags: |
+            type=sha,format=long,prefix=
+            type=ref,event=branch
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service }}
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}

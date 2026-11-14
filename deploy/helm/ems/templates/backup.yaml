@@ -1,0 +1,70 @@
+{{- if .Values.backup.enabled }}
+{{- $ctx := dict "ctx" . "name" "mysql-backup" }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-backups
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: { storage: {{ .Values.backup.storage }} }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mysql-backup
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mysql-backup
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 600
+      template:
+        metadata:
+          labels: {{- include "ems.labels" $ctx | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          serviceAccountName: mysql-backup
+          automountServiceAccountToken: false
+          priorityClassName: ems-data
+          securityContext: {{- include "ems.podSecurity" (dict "uid" 999) | nindent 12 }}
+          containers:
+            - name: dump
+              image: {{ .Values.mysql.image }}
+              env:
+                - name: MYSQL_PWD
+                  valueFrom: { secretKeyRef: { name: mysql, key: root-password } }
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  f=/backups/ems-$(date +%Y%m%d-%H%M%S).sql.gz
+                  mysqldump -h mysql -uroot --single-transaction --routines --databases employee_db department_db | gzip > "$f"
+                  echo "wrote $f ($(du -h "$f" | cut -f1))"
+                  ls -1t /backups/ems-*.sql.gz | tail -n +{{ add .Values.backup.keep 1 }} | xargs -r rm -f
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { memory: 256Mi }
+              securityContext: {{- include "ems.containerSecurity" (dict) | nindent 16 }}
+              volumeMounts:
+                - { name: backups, mountPath: /backups }
+          volumes:
+            - name: backups
+              persistentVolumeClaim: { claimName: mysql-backups }
+{{- end }}

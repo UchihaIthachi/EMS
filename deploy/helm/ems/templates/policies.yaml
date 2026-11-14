@@ -1,0 +1,46 @@
+{{- if .Values.priorityClasses.create }}
+# Data pods outrank app pods: under memory pressure the scheduler evicts app pods first.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: ems-data
+value: 1000
+globalDefault: false
+description: EMS data tier (MySQL, RabbitMQ, Redis)
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: ems-app
+value: 500
+globalDefault: false
+description: EMS application tier
+{{- end }}
+{{- if .Values.quota.enabled }}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ems
+  namespace: {{ $.Release.Namespace }}
+spec:
+  hard:
+    requests.memory: {{ .Values.quota.requestsMemory }}
+    limits.memory: {{ .Values.quota.limitsMemory }}
+    pods: {{ .Values.quota.pods | quote }}
+{{- end }}
+{{- if .Values.limitRange.enabled }}
+---
+# Defaults for any container that forgets requests/limits (e.g. the Gateway proxy).
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: ems-defaults
+  namespace: {{ $.Release.Namespace }}
+spec:
+  limits:
+    - type: Container
+      defaultRequest: { cpu: 50m, memory: 64Mi }
+      default: { memory: 256Mi }
+      max: { memory: 1Gi }
+{{- end }}

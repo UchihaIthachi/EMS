@@ -21,6 +21,6 @@ public class Department {
     @Column(name = "description")
     private String departmentDescription;
 
-    @Column(name = "department_code")
+    @Column(name = "department_code", nullable = false, unique = true, length = 32)
     private String departmentCode;
 }

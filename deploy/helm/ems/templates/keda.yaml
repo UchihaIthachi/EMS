@@ -1,0 +1,33 @@
+{{- range $name, $svc := .Values.services }}
+{{- if dig "keda" "enabled" false $svc }}
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ $name }}-rabbitmq
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "ems.labels" (dict "ctx" $ "name" $name) | nindent 4 }}
+spec:
+  secretTargetRef:
+    - { parameter: host, name: rabbitmq, key: amqp-uri }
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "ems.labels" (dict "ctx" $ "name" $name) | nindent 4 }}
+spec:
+  scaleTargetRef: { name: {{ $name }} }
+  minReplicaCount: {{ $svc.keda.min }}
+  maxReplicaCount: {{ $svc.keda.max }}
+  triggers:
+    - type: rabbitmq
+      metadata:
+        protocol: amqp
+        queueName: {{ $svc.keda.queue }}
+        mode: QueueLength
+        value: {{ $svc.keda.messagesPerPod | quote }}
+      authenticationRef: { name: {{ $name }}-rabbitmq }
+{{- end }}
+{{- end }}

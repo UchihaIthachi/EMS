@@ -1,0 +1,60 @@
+{{- $ctx := dict "ctx" . "name" "frontend" }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels: {{- include "ems.selector" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "ems.labels" $ctx | nindent 8 }}
+    spec:
+      serviceAccountName: frontend
+      automountServiceAccountToken: false
+      priorityClassName: ems-app
+      securityContext: {{- include "ems.podSecurity" (dict "uid" 101) | nindent 8 }}
+      containers:
+        - name: nginx
+          image: {{ include "ems.image" (dict "ctx" $ "image" .Values.frontend.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 15
+          resources: {{- toYaml .Values.frontend.resources | nindent 12 }}
+          securityContext: {{- include "ems.containerSecurity" (dict "readOnly" true) | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 16Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: {{ $.Release.Namespace }}
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+spec:
+  selector: {{- include "ems.selector" $ctx | nindent 4 }}
+  ports:
+    - { name: http, port: 80, targetPort: http }

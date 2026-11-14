@@ -1,0 +1,110 @@
+# Local run without Kubernetes: same images, same config keys as the Helm chart.
+#   cd deploy/compose && cp .env.example .env && docker compose up -d
+#   open http://127.0.0.1:18080/
+# "edge" plays the role of the Kubernetes Gateway: /api, /employee-service, /department-service -> api-gateway, / -> frontend.
+name: ems
+
+x-java: &java
+  restart: unless-stopped
+  mem_limit: 512m
+  environment: &java-env
+    JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError"
+  healthcheck:
+    # The JRE image has no curl; bash's /dev/tcp is enough for one HTTP request.
+    test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health/readiness HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+    interval: 10s
+    timeout: 3s
+    retries: 18
+    start_period: 30s
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set it in .env}
+      EMPLOYEE_DB_PASSWORD: ${EMPLOYEE_DB_PASSWORD:?set it in .env}
+      DEPARTMENT_DB_PASSWORD: ${DEPARTMENT_DB_PASSWORD:?set it in .env}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql-init.sh:/docker-entrypoint-initdb.d/01-ems-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin -uroot ping --silent"]
+      interval: 5s
+      retries: 30
+
+  rabbitmq:
+    image: rabbitmq:3.13
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ems
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set it in .env}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "32mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
+
+  department-service:
+    <<: *java
+    image: ghcr.io/uchihaithachi/ems-department-service:${EMS_TAG:-k8s-native}
+    build: ../../department-service
+    environment:
+      <<: *java-env
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/department_db?allowPublicKeyRetrieval=true&useSSL=false"
+      SPRING_DATASOURCE_USERNAME: department
+      SPRING_DATASOURCE_PASSWORD: ${DEPARTMENT_DB_PASSWORD}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ems
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      APP_MESSAGE: "Department service is up (Docker Compose)"
+    depends_on:
+      mysql: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      redis: { condition: service_started }
+
+  employee-service:
+    <<: *java
+    image: ghcr.io/uchihaithachi/ems-employee-service:${EMS_TAG:-k8s-native}
+    build: ../../employee-service
+    environment:
+      <<: *java-env
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/employee_db?allowPublicKeyRetrieval=true&useSSL=false"
+      SPRING_DATASOURCE_USERNAME: employee
+      SPRING_DATASOURCE_PASSWORD: ${EMPLOYEE_DB_PASSWORD}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ems
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      CLIENTS_DEPARTMENT_URL: http://department-service:8080
+      APP_MESSAGE: "Employee service is up (Docker Compose)"
+    depends_on:
+      mysql: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  api-gateway:
+    <<: *java
+    image: ghcr.io/uchihaithachi/ems-api-gateway:${EMS_TAG:-k8s-native}
+    build: ../../api-gateway
+    depends_on:
+      employee-service: { condition: service_healthy }
+      department-service: { condition: service_healthy }
+
+  frontend:
+    image: ghcr.io/uchihaithachi/ems-frontend:${EMS_TAG:-k8s-native}
+    build: ../../frontend
+    restart: unless-stopped
+
+  edge:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports: ["127.0.0.1:18080:80"]
+    volumes: ["./edge.conf:/etc/nginx/conf.d/default.conf:ro"]
+    depends_on: [api-gateway, frontend]
+
+volumes:
+  mysql-data:
