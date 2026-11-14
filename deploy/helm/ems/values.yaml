@@ -9,6 +9,8 @@ image:
 # Created by Helm from these values. Put real values in a git-ignored secrets.local.yaml
 # (see secrets.local.yaml.example) or reference existing Secrets.
 secrets:
+  # false: Secrets "mysql" and "rabbitmq" are created elsewhere (e.g. Kustomize secretGenerator).
+  create: true
   mysqlRootPassword: ""
   employeeDbPassword: ""
   departmentDbPassword: ""

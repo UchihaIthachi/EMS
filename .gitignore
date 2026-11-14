@@ -4,3 +4,4 @@ deploy/nginx-logs/
 
 # Helm secrets
 *.local.yaml
+deploy/kustomize/base/secrets.env

@@ -1,0 +1,63 @@
+# Base: the Helm chart rendered by Kustomize, with Secrets from a git-ignored env file.
+# Render:  kubectl kustomize --enable-helm --load-restrictor=LoadRestrictionsNone deploy/kustomize/overlays/lab
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ems
+
+resources:
+  - namespace.yaml
+
+helmGlobals:
+  chartHome: ../../helm
+
+helmCharts:
+  - name: ems
+    releaseName: ems
+    namespace: ems
+    valuesInline:
+      secrets:
+        create: false
+
+# Secrets come from base/secrets.env (copy secrets.env.example). Fixed names: the chart refers to them.
+secretGenerator:
+  - name: mysql
+    envs: [secrets.env]
+    options: { disableNameSuffixHash: true }
+  - name: rabbitmq
+    envs: [secrets.env]
+    options: { disableNameSuffixHash: true }
+
+# Map env-file keys to the key names the workloads expect
+patches:
+  - target: { kind: Secret, name: mysql }
+    patch: |-
+      - op: move
+        from: /data/MYSQL_ROOT_PASSWORD
+        path: /data/root-password
+      - op: move
+        from: /data/MYSQL_EMPLOYEE_PASSWORD
+        path: /data/employee-password
+      - op: move
+        from: /data/MYSQL_DEPARTMENT_PASSWORD
+        path: /data/department-password
+      - op: remove
+        path: /data/RABBITMQ_PASSWORD
+      - op: remove
+        path: /data/RABBITMQ_AMQP_URI
+  - target: { kind: Secret, name: rabbitmq }
+    patch: |-
+      - op: move
+        from: /data/RABBITMQ_PASSWORD
+        path: /data/password
+      - op: move
+        from: /data/RABBITMQ_AMQP_URI
+        path: /data/amqp-uri
+      - op: add
+        path: /data/username
+        value: ZW1z
+      - op: remove
+        path: /data/MYSQL_ROOT_PASSWORD
+      - op: remove
+        path: /data/MYSQL_EMPLOYEE_PASSWORD
+      - op: remove
+        path: /data/MYSQL_DEPARTMENT_PASSWORD
