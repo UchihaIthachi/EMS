@@ -40,7 +40,8 @@ gateway:
 
 java:
   toolOptions: "-XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError"
-  lazyInit: true
+  # Keep false: lazy init stops @RabbitListener and RabbitAdmin from ever starting (no queues, no consumer).
+  lazyInit: false
   resources:
     requests: { cpu: 100m, memory: 384Mi }
     limits: { memory: 448Mi }

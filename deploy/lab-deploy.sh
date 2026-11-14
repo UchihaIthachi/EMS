@@ -72,7 +72,11 @@ c() { curl -g -s -o /tmp/ems-body -w '%{http_code}' "$@"; }
 row() { printf '  %-46s %s\n' "$1" "$2"; }
 row "GET  / (frontend)" "$(c $B/)"
 printf '%s' '{"departmentName":"Engineering","departmentDescription":"Builds things","departmentCode":"ENG"}' > /tmp/ems-dept.json
-row "POST department ENG" "$(c -X POST -H "$j" --data-binary @/tmp/ems-dept.json $B/api/v1/department-controller)"
+if [ "$(c $B/api/v1/department-controller/ENG)" = 404 ]; then
+  row "POST department ENG" "$(c -X POST -H "$j" --data-binary @/tmp/ems-dept.json $B/api/v1/department-controller)"
+else
+  row "POST department ENG (exists, expect 409)" "$(c -X POST -H "$j" --data-binary @/tmp/ems-dept.json $B/api/v1/department-controller)"
+fi
 row "GET  department ENG (cache-aside)" "$(c $B/api/v1/department-controller/ENG)"
 before=$(curl -g -s $B/api/v1/department-controller/ENG/stats | sed -n 's/.*"employeeCount":\([0-9]*\).*/\1/p')
 printf '{"firstName":"Smoke","lastName":"Test","email":"smoke-%s@example.test","departmentCode":"ENG","position":"SRE","salary":1000,"hireDate":"2026-11-14"}' "$(date +%s)" > /tmp/ems-emp.json

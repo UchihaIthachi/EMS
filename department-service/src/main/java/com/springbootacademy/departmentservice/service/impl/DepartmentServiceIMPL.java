@@ -27,6 +27,10 @@ public class DepartmentServiceIMPL implements DepartmentService {
     @Override
     @CacheEvict(cacheNames = CacheConfig.DEPARTMENTS, key = "#departmentDTO.departmentCode")
     public DepartmentDTO saveDepartment(DepartmentDTO departmentDTO) {
+        // department_code is the business key other services refer to: it must be unique.
+        if (departmentDTO.getId() == 0 && departmentRepository.existsByDepartmentCode(departmentDTO.getDepartmentCode())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Department code already exists: " + departmentDTO.getDepartmentCode());
+        }
 
         Department department = new Department(
                 departmentDTO.getId(),

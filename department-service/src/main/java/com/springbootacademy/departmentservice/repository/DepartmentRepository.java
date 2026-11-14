@@ -13,4 +13,6 @@ public interface DepartmentRepository extends JpaRepository<Department,Long> {
     // Department findDepartmentByDepartmentCode(String code);
     @Query("SELECT d FROM Department d WHERE d.departmentCode = :code")
     Optional<Department> findByDepartmentCode(@Param("code") String code);
+
+    boolean existsByDepartmentCode(String departmentCode);
 }
