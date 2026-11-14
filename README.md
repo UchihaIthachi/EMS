@@ -2,11 +2,11 @@
 
 Spring Boot microservices (employees, departments, API gateway, React frontend) running on a three-node **kubeadm** cluster on a laptop. The cluster has a Helm chart, Kustomize overlays, Gateway API, KEDA, NetworkPolicies, Pod Security `restricted`, RBAC users, Prometheus/Grafana, OpenTelemetry tracing, a 22-incident [runbook](docs/runbook.md), and an [architecture atlas](docs/diagrams.md) with 24 diagrams.
 
-This branch (`k8s-native`) is the rewrite. [`main`](https://github.com/UchihaIthachi/EMS/tree/main) is the earlier version.
+This is the Kubernetes-native rewrite, merged from branch `k8s-native`. The earlier version is kept as tag [`v0-legacy`](https://github.com/UchihaIthachi/EMS/tree/v0-legacy).
 
 ## Before → after
 
-| | `main` (before) | `k8s-native` (this branch) |
+| | `v0-legacy` (before) | now |
 |---|---|---|
 | Service discovery | Eureka server | Kubernetes Services and DNS |
 | Configuration | Spring Cloud Config server, Git repo with a token | Environment variables from ConfigMaps and Secrets |

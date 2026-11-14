@@ -512,10 +512,10 @@ Drill: 103 of 103 requests succeeded while a node was drained.
 
 ```mermaid
 flowchart LR
-  dev([git push<br/>k8s-native]) --> ga[GitHub Actions<br/>matrix: 4 services]
+  dev([git push<br/>main or k8s-native]) --> ga[GitHub Actions<br/>matrix: 4 services]
   ga --> mvn[Maven package on<br/>build platform]
   mvn --> bx[docker buildx<br/>linux/amd64 + linux/arm64]
-  bx --> ghcr[(GHCR<br/>ems-*:full-SHA<br/>ems-*:k8s-native)]
+  bx --> ghcr[(GHCR<br/>ems-*:full-SHA<br/>ems-*:branch name)]
   ghcr --> ld[lab-deploy.sh<br/>waits for images of HEAD]
   ld --> helm[helm upgrade --install<br/>--force-conflicts<br/>image.tag = SHA]
   helm --> roll[rollout status<br/>per Deployment]

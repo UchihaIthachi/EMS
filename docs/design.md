@@ -1,6 +1,6 @@
 # EMS on Kubernetes: design document
 
-Status: design locked 14 Nov 2026, implementation on branch `k8s-native`.
+Status: design locked 14 Nov 2026; implemented on branch `k8s-native`, merged to `main`.
 Related: [architecture.md](architecture.md) (overview, patterns, trade-offs).
 
 ## 1. Goals and scope
@@ -339,7 +339,7 @@ All pods may egress to CoreDNS (`kube-system`, UDP/TCP 53). Everything else is d
 
 ```mermaid
 flowchart LR
-  dev([git push k8s-native]) --> gha[GitHub Actions]
+  dev([git push]) --> gha[GitHub Actions]
   gha -->|buildx amd64 + arm64| ghcr[(GHCR ems-*:sha)]
   chart[Helm chart deploy/helm/ems] --> kz[Kustomize overlays<br/>lab, full]
   ghcr -.->|image tag = commit SHA| chart
