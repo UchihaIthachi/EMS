@@ -10,11 +10,10 @@ const BASE = __ENV.BASE || 'http://127.0.0.1:18080';
 const DEPTS = ['ENG', 'OPS', 'FIN'];
 
 export const options = {
-  stages: [
-    { duration: '30s', target: 5 },
-    { duration: '2m', target: 20 },
-    { duration: '30s', target: 0 },
-  ],
+  // PROFILE=drill: short and lab-sized (used by deploy/drills/section-e.sh); default: heavier.
+  stages: __ENV.PROFILE === 'drill'
+    ? [{ duration: '20s', target: 4 }, { duration: '100s', target: 8 }, { duration: '10s', target: 0 }]
+    : [{ duration: '30s', target: 5 }, { duration: '2m', target: 20 }, { duration: '30s', target: 0 }],
   thresholds: {
     http_req_failed: ['rate<0.02'],
     http_req_duration: ['p(95)<800'],

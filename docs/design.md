@@ -204,8 +204,8 @@ Service CIDR `10.96.0.0/12`.
 |---|---|---|---|---|---|---|
 | frontend | Deployment | 1 (2 in `full`) | ClusterIP :80 | — | — | — |
 | api-gateway | Deployment | 2 | ClusterIP :8080 | — | — | minAvailable 1 |
-| employee-service | Deployment | 1–3 | ClusterIP :8080 | HPA CPU 70% | — | minAvailable 1 (when ≥ 2) |
-| department-service | Deployment | 1–4 | ClusterIP :8080 | KEDA ScaledObject (queue 20/pod) | — | minAvailable 1 (when ≥ 2) |
+| employee-service | Deployment | 1–2 | ClusterIP :8080 | HPA CPU 70% | — | minAvailable 1 (when ≥ 2) |
+| department-service | Deployment | 1–2 | ClusterIP :8080 | KEDA ScaledObject (queue 20/pod) | — | minAvailable 1 (when ≥ 2) |
 | mysql | StatefulSet | 1 | headless + ClusterIP :3306 | — | PVC 2 Gi | — |
 | rabbitmq | StatefulSet | 1 | headless + ClusterIP :5672, :15672 | — | PVC 1 Gi | — |
 | redis | Deployment | 1 | ClusterIP :6379 | — | none (cache) | — |
@@ -221,7 +221,7 @@ Gateway + HTTPRoutes, NetworkPolicies, KEDA TriggerAuthentication.
 flowchart TB
   svc[Service ClusterIP :8080] -. selector app=employee-service .-> p1
   svc -.-> p2
-  hpa[HPA: CPU 70%, 1-3] --> dep[Deployment<br/>RollingUpdate maxUnavailable 0]
+  hpa[HPA: CPU 70%, 1-2] --> dep[Deployment<br/>RollingUpdate maxUnavailable 0]
   dep --> rs[ReplicaSet]
   rs --> p1[Pod on w1]
   rs --> p2[Pod on w2]
@@ -241,12 +241,12 @@ readOnlyRootFilesystem with an `emptyDir` at `/tmp`, drop ALL capabilities;
 
 ```mermaid
 flowchart LR
-  q[[RabbitMQ queue]] -. length .-> so[ScaledObject<br/>20 msgs per pod, 1-4]
+  q[[RabbitMQ queue]] -. length .-> so[ScaledObject<br/>20 msgs per pod, 1-2]
   ta[TriggerAuthentication] --> so
   s[Secret: AMQP URI] --> ta
   so -->|creates and drives| hpa[HPA keda-hpa-department]
   hpa --> d[Deployment department-service]
-  d --> pods[Pods 1-4]
+  d --> pods[Pods 1-2]
   pods -->|consume, ack| q
 ```
 
@@ -313,7 +313,7 @@ All pods may egress to CoreDNS (`kube-system`, UDP/TCP 53). Everything else is d
 | rabbitmq | 50m / 160Mi | 256Mi | `ems-data` |
 | redis | 10m / 32Mi | 64Mi | `ems-data` |
 
-- `ResourceQuota` on `ems`: requests.memory 3Gi, limits.memory 3.5Gi, pods 20.
+- `ResourceQuota` on `ems`: requests.memory 4Gi, limits.memory 5Gi, pods 25 (scale-out plus one rolling-update surge pod).
 - `LimitRange`: default request 64Mi/50m and default limit 256Mi for anything that forgets.
 - Data pods get the higher PriorityClass, so under pressure app pods are evicted first.
 - api-gateway replicas spread across `lima-w1`/`lima-w2` (`topologySpreadConstraints`, maxSkew 1).

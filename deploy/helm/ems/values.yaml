@@ -19,8 +19,8 @@ priorityClasses:
 
 quota:
   enabled: true
-  requestsMemory: 3584Mi
-  limitsMemory: 4608Mi
+  requestsMemory: 4096Mi  # room for scale-out + one rolling-update surge pod
+  limitsMemory: 5120Mi
   pods: "25"
 
 limitRange:
@@ -84,7 +84,7 @@ services:
     image: ems-department-service
     replicas: 1
     pdb: { minAvailable: 1, onlyWhenScaled: true }
-    keda: { enabled: true, min: 1, max: 3, queue: department.employee-events, messagesPerPod: 20 }
+    keda: { enabled: true, min: 1, max: 2, queue: department.employee-events, messagesPerPod: 20 }  # max 2: quota headroom on the lab
     waitFor: ["mysql:3306", "rabbitmq:5672"]
     env:
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/department_db?allowPublicKeyRetrieval=true&useSSL=false"
