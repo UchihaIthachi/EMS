@@ -1,4 +1,18 @@
 {{- if .Values.gateway.enabled }}
+# Proxy pod settings for kgateway: the only change needed for Pod Security "restricted"
+# is the RuntimeDefault seccomp profile (the proxy already runs non-root without privileges).
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: GatewayParameters
+metadata:
+  name: {{ .Values.gateway.name }}-proxy
+  labels: {{- include "ems.labels" (dict "ctx" . "name" "gateway") | nindent 4 }}
+spec:
+  kube:
+    podTemplate:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -6,6 +20,11 @@ metadata:
   labels: {{- include "ems.labels" (dict "ctx" . "name" "gateway") | nindent 4 }}
 spec:
   gatewayClassName: {{ .Values.gateway.className }}
+  infrastructure:
+    parametersRef:
+      group: gateway.kgateway.dev
+      kind: GatewayParameters
+      name: {{ .Values.gateway.name }}-proxy
   listeners:
     - { name: http, protocol: HTTP, port: 80 }
 ---

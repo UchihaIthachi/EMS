@@ -10,9 +10,9 @@ Prerequisites in the cluster: a default StorageClass, metrics-server, Gateway AP
 ```bash
 cp secrets.local.yaml.example secrets.local.yaml   # git-ignored; fill in passwords
 kubectl create namespace ems
-kubectl label namespace ems pod-security.kubernetes.io/enforce=baseline pod-security.kubernetes.io/warn=restricted
+kubectl label namespace ems pod-security.kubernetes.io/enforce=restricted
 helm upgrade --install ems . -n ems -f secrets.local.yaml --set image.tag=<commit-sha or branch>
 ```
 
-Pod Security starts at `baseline` enforced with `restricted` warnings; switching enforcement to
-`restricted` once no warnings appear is a hardening step in the runbook.
+Every pod in the chart, including the kgateway proxy (via `GatewayParameters`), passes Pod Security
+`restricted`, which is enforced on the namespace.

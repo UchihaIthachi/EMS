@@ -34,10 +34,10 @@ ready=$(kubectl get nodes --no-headers | awk '$2=="Ready"' | wc -l | tr -d ' ')
 [ "$ready" = 3 ] || die "expected 3 Ready nodes, got $ready"
 kubectl get crd scaledobjects.keda.sh gateways.gateway.networking.k8s.io >/dev/null || die "KEDA or Gateway API missing (run k8s-lab/addons.sh)"
 
-step "3. Namespace with Pod Security (enforce baseline, warn restricted)"
+step "3. Namespace with Pod Security (enforce restricted)"
 kubectl create namespace $NS --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace $NS --overwrite \
-  pod-security.kubernetes.io/enforce=baseline pod-security.kubernetes.io/warn=restricted pod-security.kubernetes.io/audit=restricted
+  pod-security.kubernetes.io/enforce=restricted pod-security.kubernetes.io/warn=restricted pod-security.kubernetes.io/audit=restricted
 
 step "4. helm upgrade --install"
 helm upgrade --install ems "$CHART" -n $NS -f "$CHART/secrets.local.yaml" --set image.tag="$TAG"
