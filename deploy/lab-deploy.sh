@@ -47,9 +47,9 @@ echo "  fields owned by other managers before the upgrade:"
 kubectl -n $NS get deploy,svc,netpol -o json 2>/dev/null | python3 -c '
 import json,sys
 for o in json.load(sys.stdin)["items"]:
-    m={f["manager"] for f in o["metadata"].get("managedFields",[]) if f.get("operation")=="Update" and f["manager"].startswith("kubectl")}
+    m={f["manager"] for f in o["metadata"].get("managedFields",[]) if f["manager"].startswith("kubectl")}
     if m: print("   ", o["kind"], o["metadata"]["name"], sorted(m))' || true
-helm upgrade --install ems "$CHART" -n $NS -f "$CHART/secrets.local.yaml" --set image.tag="$TAG" --force-conflicts
+helm upgrade --install ems "$CHART" -n $NS -f "$CHART/secrets.local.yaml" --set image.tag="$TAG" --force-conflicts ${HELM_ARGS:-}
 
 step "5. Data tier"
 kubectl -n $NS rollout status statefulset/mysql --timeout=300s
@@ -60,7 +60,14 @@ step "6. Apps (JVMs need 1-2 minutes)"
 for d in frontend department-service employee-service api-gateway; do
   kubectl -n $NS rollout status deploy/$d --timeout=420s || {
     kubectl -n $NS get pods -l app.kubernetes.io/name=$d
-    kubectl -n $NS logs deploy/$d --all-containers --tail=30 || true
+    # logs deploy/X picks ANY pod (often the healthy old one): read the failing pod instead
+    bad=$(kubectl -n $NS get pods -l app.kubernetes.io/name=$d --no-headers | awk '{split($2,a,"/"); if(a[1]!=a[2]){print $1; exit}}')
+    if [ -n "$bad" ]; then
+      echo "---- $bad: last state"
+      kubectl -n $NS get pod "$bad" -o jsonpath='{range .status.containerStatuses[*]}{.name}: {.lastState.terminated.reason} exit={.lastState.terminated.exitCode}{"\n"}{end}'
+      echo "---- $bad: previous container log (tail)"
+      kubectl -n $NS logs "$bad" -c app --previous --tail=40 2>/dev/null || kubectl -n $NS logs "$bad" --all-containers --tail=40 || true
+    fi
     die "$d did not become ready"; }
 done
 

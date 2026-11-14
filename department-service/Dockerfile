@@ -12,6 +12,9 @@ RUN useradd --system --uid 10001 --no-create-home app
 # OpenTelemetry agent is shipped but OFF by default. Turn tracing on by appending
 # "-javaagent:/otel/opentelemetry-javaagent.jar" to JAVA_TOOL_OPTIONS and setting OTEL_* env vars.
 ARG OTEL_AGENT_VERSION=2.10.0
+# Create /otel first: ADD --chmod on a missing parent gives the DIRECTORY mode 644 (no x bit),
+# so the non-root user can't open the jar ("Error opening zip file"). Runbook 19.
+RUN mkdir -p /otel && chmod 755 /otel
 ADD --chmod=644 https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_AGENT_VERSION}/opentelemetry-javaagent.jar /otel/opentelemetry-javaagent.jar
 WORKDIR /app
 COPY --from=build /app.jar /app/app.jar

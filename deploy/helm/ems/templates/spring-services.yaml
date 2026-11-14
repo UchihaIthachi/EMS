@@ -16,7 +16,18 @@ metadata:
   namespace: {{ $.Release.Namespace }}
   labels: {{- include "ems.labels" $ctx | nindent 4 }}
 data:
+  {{- if $.Values.tracing.enabled }}
+  JAVA_TOOL_OPTIONS: {{ printf "%s -javaagent:/otel/opentelemetry-javaagent.jar" $.Values.java.toolOptions | quote }}
+  OTEL_SERVICE_NAME: {{ $name | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ $.Values.tracing.endpoint | quote }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+  OTEL_TRACES_SAMPLER: {{ $.Values.tracing.sampler | quote }}
+  OTEL_METRICS_EXPORTER: "none"
+  OTEL_LOGS_EXPORTER: "none"
+  OTEL_RESOURCE_ATTRIBUTES: {{ printf "deployment.environment=lab,service.namespace=%s" $.Release.Namespace | quote }}
+  {{- else }}
   JAVA_TOOL_OPTIONS: {{ $.Values.java.toolOptions | quote }}
+  {{- end }}
   SPRING_MAIN_LAZY_INITIALIZATION: {{ $.Values.java.lazyInit | quote }}
   {{- range $k, $v := $svc.env }}
   {{ $k }}: {{ $v | quote }}
@@ -42,7 +53,7 @@ spec:
     metadata:
       labels: {{- include "ems.labels" $ctx | nindent 8 }}
       annotations:
-        checksum/config: {{ toJson $svc.env | sha256sum | trunc 16 }}
+        checksum/config: {{ toJson (list $svc.env $.Values.java $.Values.tracing) | sha256sum | trunc 16 }}
         checksum/secrets: {{ toJson $.Values.secrets | sha256sum | trunc 16 }}
         {{- if $.Values.metrics.enabled }}
         prometheus.io/scrape: "true"
@@ -83,7 +94,7 @@ spec:
           startupProbe:
             httpGet: { path: /actuator/health/liveness, port: http }
             periodSeconds: 5
-            failureThreshold: 30
+            failureThreshold: 48   # 4 min: JVM + OTel agent on a small laptop VM
           livenessProbe:
             httpGet: { path: /actuator/health/liveness, port: http }
             periodSeconds: 10

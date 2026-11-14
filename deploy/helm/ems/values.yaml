@@ -37,6 +37,15 @@ metrics:
   enabled: true
   namespace: monitoring
 
+# OpenTelemetry Java agent (baked into the images at /otel) -> OTLP/HTTP collector.
+# Off by default: it adds ~40-60Mi per JVM and slows startup.
+tracing:
+  enabled: false
+  namespace: monitoring
+  endpoint: http://jaeger.monitoring.svc:4318
+  collectorLabel: jaeger      # app.kubernetes.io/name of the collector pod (egress NetworkPolicy)
+  sampler: parentbased_always_on
+
 # Labels on the kgateway proxy pods for the Gateway below (used by NetworkPolicies).
 gateway:
   enabled: true
