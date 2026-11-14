@@ -7,3 +7,4 @@ deploy/nginx-logs/
 deploy/kustomize/base/secrets.env
 deploy/compose/.env
 .idea/
+docs/site/dist/

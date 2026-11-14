@@ -38,7 +38,7 @@ flowchart LR
   dep --> redis[(Redis<br/>cache)]
 ```
 
-There's one MySQL server with two databases and one user per service. The full design, with requirements, data and event model, every Kubernetes object, the NetworkPolicy matrix, RBAC and resource budget, is in [docs/design.md](docs/design.md). Patterns and failure modes are in [docs/architecture.md](docs/architecture.md). Every flow (circuit breaker, cache-aside, DLQ, idempotent consumer, HPA/KEDA, rollout, delivery, security) is drawn in [docs/diagrams.md](docs/diagrams.md). The API is described in [API_DOC.md](API_DOC.md).
+There's one MySQL server with two databases and one user per service. The full design, with requirements, data and event model, every Kubernetes object, the NetworkPolicy matrix, RBAC and resource budget, is in [docs/design.md](docs/design.md). Patterns and failure modes are in [docs/architecture.md](docs/architecture.md). Every flow (circuit breaker, cache-aside, DLQ, idempotent consumer, HPA/KEDA, rollout, delivery, security) is drawn in [docs/diagrams.md](docs/diagrams.md). The same diagrams are built into an interactive web page, with a circuit-breaker simulator and HPA/KEDA calculators: run `python3 docs/site/build.py`, then open `docs/site/dist/index.html`. The `atlas-pages` workflow publishes it to GitHub Pages. The API is described in [API_DOC.md](API_DOC.md).
 
 ## What runs where
 
@@ -135,6 +135,7 @@ deploy/observability/     Prometheus + Grafana, Jaeger + OTel agent
 deploy/compose/           local run without Kubernetes
 loadtest/k6/              load profiles (PROFILE=drill)
 docs/                     design, architecture, diagrams atlas, runbook
+docs/site/                atlas web page generator (GitHub Pages)
 .github/workflows/ci.yml  multi-arch images to GHCR
 ```
 

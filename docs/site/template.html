@@ -1,0 +1,234 @@
+<title>EMS Architecture Atlas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+{{HEAD_EXTRA}}
+<style>
+/* Layout: a field manual. Sticky section bar, one column of numbered figures, two interactive instruments. */
+:root{
+  --bg:#f3f5f2; --panel:#ffffff; --ink:#17201d; --muted:#5b6862; --line:#d7ddd8;
+  --accent:#0f6e6a; --accent-soft:#e2f0ee;
+  --ok:#1f7a3f; --warn:#b26a00; --bad:#b3261e; --ok-soft:#e5f3ea; --warn-soft:#fbefd9; --bad-soft:#f9e3e1;
+  --display:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1513; --panel:#161f1c; --ink:#e4ebe7; --muted:#9aa8a1; --line:#2a3632;
+  --accent:#4fbfb7; --accent-soft:#16302d;
+  --ok:#5cc983; --warn:#e3a43a; --bad:#ef7a70; --ok-soft:#173022; --warn-soft:#33270f; --bad-soft:#371a18;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1513; --panel:#161f1c; --ink:#e4ebe7; --muted:#9aa8a1; --line:#2a3632;
+  --accent:#4fbfb7; --accent-soft:#16302d;
+  --ok:#5cc983; --warn:#e3a43a; --bad:#ef7a70; --ok-soft:#173022; --warn-soft:#33270f; --bad-soft:#371a18;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1080px;margin:0 auto}
+header.top{padding-block:40px 24px;display:grid;gap:14px}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+h1{font:700 clamp(30px,5vw,46px)/1.08 var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+.lede{max-width:66ch;color:var(--muted);margin:0}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.stat{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 12px;display:grid;gap:2px;min-width:120px}
+.stat b{font:600 20px/1.1 var(--display);font-variant-numeric:tabular-nums}
+.stat span{font:12px/1.2 var(--mono);color:var(--muted)}
+nav.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);
+  display:flex;gap:6px;overflow-x:auto;padding-block:10px;scrollbar-width:thin}
+nav.bar a{flex:none;font:500 13px/1 var(--body);color:var(--ink);text-decoration:none;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel)}
+nav.bar a:hover,nav.bar a:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+.group{padding-block:28px 8px;display:grid;gap:20px;scroll-margin-top:64px}
+.ghead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px}
+.ghead h2{font:600 24px/1.2 var(--display);margin:0}
+.ghead p{margin:0;color:var(--muted)}
+.fig{margin:0;display:grid;gap:8px;scroll-margin-top:64px;min-width:0}
+.fig figcaption{display:flex;align-items:baseline;gap:10px}
+.num{font:500 12px/1 var(--mono);color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:3px 5px;font-variant-numeric:tabular-nums}
+.fig h3{font:600 18px/1.3 var(--display);margin:0;text-wrap:balance}
+.cap{margin:0;color:var(--muted);max-width:75ch}
+.diagram{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;overflow-x:auto}
+.diagram pre{margin:0;font:12px/1.4 var(--mono)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:500 12px/1.2 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+/* instruments */
+.inst{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:18px;display:grid;gap:14px}
+.inst h3{font:600 18px/1.3 var(--display);margin:0}
+.inst .cap{font-size:14px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button{font:500 14px/1 var(--body);padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.ok{border-color:var(--ok);color:var(--ok)} button.bad{border-color:var(--bad);color:var(--bad)} button.warn{border-color:var(--warn);color:var(--warn)}
+.state{font:600 15px/1 var(--mono);padding:8px 12px;border-radius:6px;letter-spacing:.04em}
+.s-CLOSED{background:var(--ok-soft);color:var(--ok)} .s-OPEN{background:var(--bad-soft);color:var(--bad)} .s-HALF_OPEN{background:var(--warn-soft);color:var(--warn)}
+.window{display:flex;gap:6px;flex-wrap:wrap}
+.slot{width:28px;height:28px;border-radius:6px;border:1px dashed var(--line);display:grid;place-items:center;font:500 11px/1 var(--mono)}
+.slot.ok{background:var(--ok-soft);border:1px solid var(--ok);color:var(--ok)}
+.slot.bad{background:var(--bad-soft);border:1px solid var(--bad);color:var(--bad)}
+.slot.slow{background:var(--warn-soft);border:1px solid var(--warn);color:var(--warn)}
+.meters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.meter{border:1px solid var(--line);border-radius:8px;padding:10px;display:grid;gap:4px}
+.meter span{font:12px/1.2 var(--mono);color:var(--muted)}
+.meter b{font:600 18px/1.1 var(--display);font-variant-numeric:tabular-nums}
+.log{font:12.5px/1.5 var(--mono);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;max-height:180px;overflow:auto;margin:0;white-space:pre-wrap}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.calc{border:1px solid var(--line);border-radius:8px;padding:14px;display:grid;gap:10px;min-width:0}
+.calc h4{margin:0;font:600 15px/1.3 var(--display)}
+label{font:13px/1.3 var(--body);color:var(--muted);display:grid;gap:6px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.pods{display:flex;gap:6px;flex-wrap:wrap;min-height:30px}
+.pod{width:26px;height:26px;border-radius:50%;background:var(--accent);opacity:.9}
+.pod.off{background:transparent;border:1px dashed var(--line)}
+.formula{font:13px/1.5 var(--mono);color:var(--ink);background:var(--accent-soft);border-radius:6px;padding:8px 10px;overflow-x:auto}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:none;border-radius:0;padding:8px 12px}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--bg)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:28px}
+aside.index{display:none}
+@media (min-width:1100px){
+  .wrap{max-width:1320px}
+  .layout{grid-template-columns:240px minmax(0,1fr)}
+  aside.index{display:block;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;padding-block:28px;font-size:13px}
+  nav.bar{display:none}
+}
+aside.index h4{font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:18px 0 6px}
+aside.index a{display:flex;gap:8px;color:var(--ink);text-decoration:none;padding:3px 6px;border-radius:5px;line-height:1.35}
+aside.index a:hover,aside.index a:focus-visible{background:var(--accent-soft);outline:none}
+aside.index a span{font:11px/1.6 var(--mono);color:var(--accent);flex:none;width:18px}
+.howto{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;font-size:13px}
+.howto div{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--panel)}
+.howto b{display:block;font:600 13px/1.3 var(--display);margin-bottom:2px}
+.figtools{margin-left:auto}
+.figtools button{padding:6px 10px;font-size:12px}
+dialog#zoom{width:min(96vw,1400px);max-height:92vh;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);padding:0}
+dialog#zoom::backdrop{background:rgba(0,0,0,.55)}
+dialog#zoom .zhead{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+dialog#zoom .zbody{padding:16px;overflow:auto;max-height:calc(92vh - 56px)}
+dialog#zoom .zbody svg{max-width:none!important;height:auto}
+footer{padding-block:32px 48px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:24px}
+code{font:13px var(--mono);background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+@media (prefers-reduced-motion:no-preference){.state,.pod,.slot{transition:all .2s ease}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">EMS · k8s-native · kubeadm v1.37.2</div>
+  <h1>EMS Architecture Atlas</h1>
+  <p class="lede">Every diagram of the Employee Management System on Kubernetes: request paths, circuit breaker, cache-aside, RabbitMQ with retries and a dead-letter queue, the idempotent consumer, cluster objects, NetworkPolicy, HPA and KEDA scaling, delivery and operations. Two instruments let you run the circuit breaker and the autoscalers with the real settings.</p>
+  <div class="stats">
+    <div class="stat"><b>3</b><span>Spring services</span></div>
+    <div class="stat"><b>25</b><span>diagrams and tables</span></div>
+    <div class="stat"><b>22</b><span>runbook incidents</span></div>
+    <div class="stat"><b>46–110 ms</b><span>one traced request</span></div>
+    <div class="stat"><b>103/103</b><span>requests OK in drain</span></div>
+  </div>
+  <div class="howto" aria-label="How to read the diagrams">
+    <div><b>Solid arrow</b>a synchronous call or a request path</div>
+    <div><b>Dotted arrow</b>asynchronous, optional, or a control relationship (scrape, guard, select)</div>
+    <div><b>Numbered steps</b>in sequence diagrams, the order things happen</div>
+    <div><b>Expand</b>opens any diagram full size; the index jumps to any of the 25</div>
+  </div>
+</header>
+<nav class="bar" aria-label="Sections">{{NAV}}</nav>
+<div class="layout"><aside class="index" aria-label="Diagram index">{{INDEX}}</aside><main>{{SECTIONS}}</main></div>
+<dialog id="zoom" aria-label="Diagram, full size"><div class="zhead"><b id="ztitle"></b><span class="figtools"><button type="button" id="zclose">Close</button></span></div><div class="zbody" id="zbody"></div></dialog>
+<footer>The source of these diagrams is <code>docs/diagrams.md</code> in the EMS repository (branch <code>k8s-native</code>). The numbers come from the Helm values, the application config and measured runs on the lab cluster. The instruments simulate the configured algorithms; they are not connected to the cluster.</footer>
+</div>
+
+<script>
+/* ---------- Circuit breaker (Resilience4j semantics, employee-service config) ---------- */
+(function(){
+  const CFG={window:10,minCalls:5,failPct:50,slowPct:50,openSec:15,halfCalls:2};
+  let state='CLOSED', win=[], half=[], openAt=0, clock=0;
+  const $=id=>document.getElementById(id);
+  if(!$('cb-state')) return;
+  function log(m){const l=$('cb-log'); l.textContent=`t=${String(clock).padStart(3)}s  ${m}\n`+l.textContent;}
+  function rates(arr){const n=arr.length; if(!n) return {n,f:0,s:0};
+    return {n,f:Math.round(100*arr.filter(x=>x==='bad').length/n),s:Math.round(100*arr.filter(x=>x==='slow').length/n)};}
+  function render(){
+    const st=$('cb-state'); st.textContent=state.replace('_','-'); st.className='state s-'+state;
+    const arr=state==='HALF_OPEN'?half:win, w=$('cb-window'); w.innerHTML='';
+    const size=state==='HALF_OPEN'?CFG.halfCalls:CFG.window;
+    for(let i=0;i<size;i++){const d=document.createElement('div'); const v=arr[i];
+      d.className='slot'+(v?' '+v:''); d.textContent=v==='ok'?'✓':v==='bad'?'✕':v==='slow'?'⌛':''; w.appendChild(d);}
+    const r=rates(arr);
+    $('cb-n').textContent=state==='HALF_OPEN'?`${r.n} / ${CFG.halfCalls} trial`:`${r.n} / ${CFG.window} (min ${CFG.minCalls})`;
+    $('cb-f').textContent=r.f+'%'; $('cb-s').textContent=r.s+'%';
+    $('cb-o').textContent=state==='OPEN'?`${Math.max(0,CFG.openSec-(clock-openAt))} s`:'—';
+    $('cb-wlabel').textContent=state==='HALF_OPEN'?'Half-open trial calls':'Sliding window: last 10 calls';
+  }
+  function trip(reason){state='OPEN'; openAt=clock; win=[]; half=[]; log(`→ OPEN (${reason}); calls now fail fast to the fallback`);}
+  function call(kind){
+    clock+=1;
+    if(state==='OPEN'){
+      if(clock-openAt>=CFG.openSec){state='HALF_OPEN'; half=[]; log('15 s passed → HALF-OPEN');}
+      else{log('call rejected: circuit OPEN → fallback, 200 with departmentDTO = null'); render(); return;}
+    }
+    const res = kind==='bad' ? 'failed → fallback, 200 with departmentDTO = null' : kind==='slow' ? 'slow (>2 s), result returned' : 'OK, 200 with department';
+    if(state==='HALF_OPEN'){
+      if(half.length>=CFG.halfCalls){log('call rejected: trial slots used'); render(); return;}
+      half.push(kind); log(`trial call ${half.length}/2 ${res}`);
+      if(half.length===CFG.halfCalls){const r=rates(half);
+        if(r.f>=CFG.failPct||r.s>=CFG.slowPct) trip(`trial failure ${r.f}%, slow ${r.s}%`);
+        else{state='CLOSED'; win=[]; log('trial calls healthy → CLOSED');}}
+      render(); return;
+    }
+    win.push(kind); if(win.length>CFG.window) win.shift();
+    log(`call ${res}`);
+    const r=rates(win);
+    if(r.n>=CFG.minCalls && (r.f>=CFG.failPct||r.s>=CFG.slowPct)) trip(`failure ${r.f}%, slow ${r.s}% over ${r.n} calls`);
+    render();
+  }
+  $('cb-ok').onclick=()=>call('ok'); $('cb-bad').onclick=()=>call('bad'); $('cb-slow').onclick=()=>call('slow');
+  $('cb-wait').onclick=()=>{clock+=15; if(state==='OPEN'&&clock-openAt>=CFG.openSec){state='HALF_OPEN'; half=[]; log('15 s passed → HALF-OPEN: next 2 calls are trials');} else log('waited 15 s'); render();};
+  $('cb-outage').onclick=()=>{for(let i=0;i<5;i++) call('bad');};
+  $('cb-reset').onclick=()=>{state='CLOSED';win=[];half=[];clock=0;openAt=0;$('cb-log').textContent='';log('reset: CLOSED, empty window');render();};
+  log('CLOSED, empty window. Try "department-service down".'); render();
+})();
+
+/* ---------- Autoscaling calculators ---------- */
+(function(){
+  const $=id=>document.getElementById(id); if(!$('q')) return;
+  let env='lab';
+  const LIM={lab:{hpa:[1,2],keda:[1,2]},full:{hpa:[2,6],keda:[2,8]}};
+  function pods(el,n,max){el.innerHTML='';for(let i=0;i<max;i++){const d=document.createElement('div');d.className='pod'+(i<n?'':' off');el.appendChild(d);}}
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  function render(){
+    const q=+$('q').value, [kmin,kmax]=LIM[env].keda;
+    const raw=q===0?0:Math.ceil(q/20), k=clamp(raw||kmin,kmin,kmax);
+    $('qv').textContent=q; $('kf').textContent=`ceil(${q} / 20) = ${raw}  → clamp ${kmin}–${kmax} = ${k} pod${k>1?'s':''}`;
+    pods($('kp'),k,kmax);
+    const cpu=+$('cpu').value, cur=+$('cur').value, [hmin,hmax]=LIM[env].hpa;
+    $('cpuv').textContent=cpu; $('curv').textContent=cur;
+    const tol=Math.abs(cpu/70-1)<=0.1; const draw=Math.ceil(cur*cpu/70); const h=tol?cur:clamp(draw,hmin,hmax);
+    $('hf').textContent=tol?`|${cpu}/70 − 1| ≤ 0.1 tolerance → keep ${cur}`:`ceil(${cur} × ${cpu} / 70) = ${draw}  → clamp ${hmin}–${hmax} = ${h}`;
+    pods($('hp'),h,hmax);
+    $('cur').max=hmax; if(cur>hmax){$('cur').value=hmax;}
+  }
+  document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{env=b.dataset.env;
+    document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));render();});
+  ['q','cpu','cur'].forEach(id=>$(id).oninput=render); render();
+})();
+
+/* ---------- Expand a diagram ---------- */
+(function(){
+  const dlg=document.getElementById('zoom'); if(!dlg||!dlg.showModal) return;
+  document.addEventListener('click',e=>{
+    const b=e.target.closest('[data-zoom]'); if(!b) return;
+    const fig=document.getElementById(b.dataset.zoom); const svg=fig&&fig.querySelector('.diagram svg, .tablewrap table');
+    if(!svg) return;
+    document.getElementById('ztitle').textContent=fig.querySelector('h3').textContent;
+    const body=document.getElementById('zbody'); body.innerHTML=''; body.appendChild(svg.cloneNode(true));
+    dlg.showModal();
+  });
+  document.getElementById('zclose').onclick=()=>dlg.close();
+  dlg.addEventListener('click',e=>{if(e.target===dlg) dlg.close();});
+})();
+</script>
+{{SCRIPT_EXTRA}}

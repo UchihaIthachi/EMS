@@ -1,0 +1,25 @@
+<div class="inst" id="scale-sim">
+  <h3>Try it: HPA and KEDA</h3>
+  <p class="cap">The replica maths from diagrams 16 and 17, with this chart's limits. Lab: HPA 1–2, KEDA 1–2. Full overlay: HPA 2–6, KEDA 2–8. The measured points were 78% CPU → 2 pods, and queue depth 94 → 2 pods.</p>
+  <div class="row"><span class="cap">Limits</span>
+    <div class="seg" role="group" aria-label="Environment"><button type="button" data-env="lab" aria-pressed="true">lab overlay</button><button type="button" data-env="full" aria-pressed="false">full overlay</button></div>
+  </div>
+  <div class="grid2">
+    <div class="calc">
+      <h4>KEDA: department-service on queue length</h4>
+      <label for="q">Messages ready in department.employee-events: <b id="qv">94</b>
+        <input type="range" id="q" min="0" max="300" value="94"></label>
+      <div class="formula" id="kf"></div>
+      <div class="pods" id="kp" aria-label="department-service pods"></div>
+    </div>
+    <div class="calc">
+      <h4>HPA: employee-service on CPU (target 70%)</h4>
+      <label for="cpu">Average CPU of requests: <b id="cpuv">78</b>%
+        <input type="range" id="cpu" min="5" max="200" value="78"></label>
+      <label for="cur">Current replicas: <b id="curv">1</b>
+        <input type="range" id="cur" min="1" max="2" value="1"></label>
+      <div class="formula" id="hf"></div>
+      <div class="pods" id="hp" aria-label="employee-service pods"></div>
+    </div>
+  </div>
+</div>

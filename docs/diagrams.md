@@ -258,7 +258,7 @@ stateDiagram-v2
   Ready --> Unacked: delivered to a consumer
   Unacked --> Acked: handler commits
   Acked --> [*]
-  Unacked --> Retry: exception (transient: DB down, deadlock)
+  Unacked --> Retry: exception (transient, e.g. DB down or deadlock)
   Retry --> Unacked: attempt 2, attempt 3<br/>(listener retry, max-attempts 3)
   Retry --> DeadLettered: still failing after 3 attempts<br/>(default-requeue-rejected = false)
   Unacked --> DeadLettered: invalid event<br/>AmqpRejectAndDontRequeueException<br/>(no retries)
