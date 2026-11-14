@@ -1,117 +1,135 @@
-# Employee Management System (EMS)
+# Employee Management System (EMS) on Kubernetes
 
-This repository contains the Employee Management System (EMS), a comprehensive application demonstrating a modern microservices architecture. It includes backend services built with Spring Boot and a frontend application built with React/TypeScript.
+Spring Boot microservices (employees, departments, API gateway, React frontend) running on a three-node **kubeadm** cluster on a laptop. The cluster has a Helm chart, Kustomize overlays, Gateway API, KEDA, NetworkPolicies, Pod Security `restricted`, RBAC users, Prometheus/Grafana, OpenTelemetry tracing, and a 20-incident [runbook](docs/runbook.md).
 
-## Project Overview
+This branch (`k8s-native`) is the rewrite. [`main`](https://github.com/UchihaIthachi/EMS/tree/main) is the earlier version.
 
-The Employee Management System (EMS) is designed to manage employee and department data through a set of interconnected microservices. It showcases best practices in distributed systems, including service discovery, centralized configuration, API gateway patterns, fault tolerance, and containerization for local and Kubernetes deployments.
+## Before → after
 
-## Features
+| | `main` (before) | `k8s-native` (this branch) |
+|---|---|---|
+| Service discovery | Eureka server | Kubernetes Services and DNS |
+| Configuration | Spring Cloud Config server, Git repo with a token | Environment variables from ConfigMaps and Secrets |
+| Edge | Spring Cloud Gateway only | Gateway API (`Gateway` + `HTTPRoute`, kgateway) → Spring Cloud Gateway |
+| Logs | Logstash appender, so nothing reached stdout | stdout (`kubectl logs`) |
+| Tracing | Sleuth + Zipkin | OpenTelemetry Java agent → Jaeger v2 (off by default) |
+| Async work | RabbitMQ dependency, no producer or consumer | `employee.created` event → idempotent consumer, retries, DLQ, CQRS read model |
+| Resilience | — | Resilience4j circuit breaker + time limiter + fallback on the Feign call |
+| Caching | — | Redis cache-aside with TTL, evict on write, fail-open |
+| Delivery | Jenkinsfile, `:latest` images | GitHub Actions → multi-arch images on GHCR, tagged by commit SHA |
+| Kubernetes | Raw manifests that crash-looped on a real cluster (runbook 1) | Helm chart + Kustomize overlays, verified on kubeadm v1.37 |
 
-*   **Microservices Architecture**: Modular design with independent services for employees, departments, configuration, service discovery, and API gateway.
-*   **Employee Management**: CRUD operations for employee records.
-*   **Department Management**: CRUD operations for department records.
-*   **Centralized Configuration**: Using Spring Cloud Config Server to manage externalized configurations for all microservices.
-*   **Service Discovery**: Employs Netflix Eureka for local deployments and Kubernetes DNS for cluster deployments.
-*   **API Gateway**: Single entry point for all client requests, handled by Spring Cloud Gateway, providing routing and potential for cross-cutting concerns.
-*   **Inter-Service Communication**: Synchronous communication using Feign Clients and asynchronous communication via RabbitMQ.
-*   **Distributed Tracing**: Integrated with Zipkin and Sleuth for monitoring and debugging requests across services.
-*   **Fault Tolerance**: Demonstrates Circuit Breaker patterns (Resilience4j) for improved system resilience.
-*   **Containerized Deployment**: Dockerized services for easy local setup using Docker Compose and production-like deployments on Kubernetes.
-*   **CI/CD Ready**: Includes a Jenkinsfile for building, testing, and deploying the application.
-*   **Comprehensive Logging & Monitoring**: Support for ELK Stack (Elasticsearch, Logstash, Kibana) for logging and Prometheus/Grafana for metrics and monitoring.
-*   **Reactive Frontend**: A user interface built with React, TypeScript, and Vite.
+The stack is Spring Boot 2.7.17, Spring Cloud 2021.0.8 and Java 17. A Boot 3 upgrade is a separate step.
 
-## Technologies Used
+## Architecture
 
-### Backend
-*   Java 17+
-*   Spring Boot 3.x
-*   Spring Cloud
-*   Spring Data JPA (Hibernate)
-*   Spring Cloud Config Server
-*   Spring Cloud Gateway
-*   Spring Cloud OpenFeign
-*   Netflix Eureka (for local discovery)
-*   Resilience4j (Circuit Breaker)
-*   Spring Sleuth & Zipkin (Distributed Tracing)
-*   RabbitMQ (Message Broker)
-*   MySQL (Databases)
-
-### Frontend
-*   React
-*   TypeScript
-*   Vite
-*   Nginx (for serving frontend static files)
-
-### DevOps & Deployment
-*   Docker & Docker Compose
-*   Kubernetes (OKE - Oracle Kubernetes Engine targeted)
-*   Jenkins (CI/CD)
-*   Nexus (Artifact Repository)
-*   GitHub Container Registry (GHCR) (intended for K8s images)
-*   ArgoCD (for GitOps deployment to Kubernetes)
-*   Prometheus & Grafana (Monitoring)
-*   ELK Stack (Logging)
-
-## Folder Structure
-
-```
-.
-├── api-gateway/        # Spring Cloud API Gateway service
-├── config-server/      # Spring Cloud Config Server
-├── department-service/ # Department microservice
-├── employee-service/   # Employee microservice
-├── service-registry/   # Eureka Service Registry (for local)
-├── frontend/           # React/TypeScript frontend application
-├── deploy/             # Deployment scripts and configurations
-│   ├── .env.Example    # Example environment variables for Docker Compose
-│   ├── docker-compose.yml # Main Docker Compose file for local deployment
-│   ├── docker-compose.dev.yml # Docker Compose override for local JAR development
-│   ├── k8s/            # Kubernetes manifests
-│   │   ├── base/
-│   │   ├── configmaps/
-│   │   ├── deployments/
-│   │   ├── ... (other Kubernetes resources)
-│   ├── argo/           # ArgoCD application definition
-│   └── init/           # Database initialization scripts
-├── .github/            # GitHub specific files (e.g., workflows)
-├── Jenkinsfile         # CI/CD pipeline definition for Jenkins
-├── cicd.sh             # Helper script for CI/CD tasks
-├── k8s-deploy.sh       # Helper script for Kubernetes deployments
-├── local-dev.sh        # Helper script for local development loop
-└── README.md           # This file
+```mermaid
+flowchart LR
+  user((Browser)) --> gw[Gateway API<br/>kgateway proxy]
+  gw -->|/| fe[frontend<br/>nginx]
+  gw -->|/api, /*-service| apigw[api-gateway<br/>Spring Cloud Gateway]
+  apigw --> emp[employee-service]
+  apigw --> dep[department-service]
+  emp -->|Feign + circuit breaker| dep
+  emp -->|employee.created| mq[(RabbitMQ<br/>ems.events)]
+  mq --> dep
+  emp --> db[(MySQL<br/>employee_db)]
+  dep --> db2[(MySQL<br/>department_db)]
+  dep --> redis[(Redis<br/>cache)]
 ```
 
-## Getting Started
+There's one MySQL server with two databases and one user per service. The full design, with requirements, data and event model, every Kubernetes object, the NetworkPolicy matrix, RBAC and resource budget, is in [docs/design.md](docs/design.md). Patterns and failure modes are in [docs/architecture.md](docs/architecture.md). The API is described in [API_DOC.md](API_DOC.md).
 
-This project can be run locally using Docker Compose or deployed to a Kubernetes cluster.
+## What runs where
 
-### Local Deployment Summary
-For a quick local setup:
-1.  Ensure Docker and Docker Compose are installed.
-2.  Clone the repository.
-3.  Navigate to the `deploy/` directory and create a `.env` file from `.env.Example`, updating necessary credentials (like `GIT_PAT` if your config repo is private).
-4.  Run `docker-compose up -d` from the `deploy/` directory.
+**Lab cluster:** three Lima VMs on a 16 GB Mac (2.5 / 3 / 3 GB).
+- kubeadm, installed at v1.36.6 and upgraded to **v1.37.2**
+- Calico, metrics-server, local-path storage
+- Gateway API v1.7 with kgateway v2.5
+- KEDA
 
-For detailed instructions on local deployment, including prerequisites, environment setup, running services with different profiles (e.g., logging, monitoring), and troubleshooting, please refer to:
-*   **[Local Deployment Guide (local-deploy.md)](local-deploy.md)**
+**Namespace `ems`:**
 
-### Kubernetes Deployment Summary
-The application is designed to be deployed on Kubernetes (specifically targeting Oracle Kubernetes Engine - OKE). This involves building Docker images, pushing them to a container registry (like GHCR), and applying Kubernetes manifests.
+| Object | Used for |
+|---|---|
+| Deployments + Services | api-gateway (2), employee-service, department-service, frontend, redis |
+| StatefulSets + PVCs | MySQL 8.4, RabbitMQ 3.13 |
+| HPA | employee-service on CPU |
+| KEDA `ScaledObject` | department-service on RabbitMQ queue length |
+| PDB, topology spread, PriorityClasses | availability during drains and node loss |
+| ResourceQuota, LimitRange | 9 pods use 2.1 Gi of the 4 Gi memory quota |
+| NetworkPolicies | default deny + one allow per flow (DNS, metrics scrape, tracing) |
+| Pod Security | `restricted` enforced on the namespace |
+| RBAC | one ServiceAccount per workload; `ems-developer` and `ems-operator` users through CSRs |
+| CronJob | `mysqldump` to a PVC at 02:00, keeps 7 |
 
-For comprehensive steps on Kubernetes deployment, CI/CD flow, GitHub Container Registry usage, and ArgoCD integration, please see:
-*   **[Kubernetes Deployment Guide (k8s-deploy.md)](k8s-deploy.md)**
+## Run it
 
-## Documentation Links
+**On the lab cluster.** It waits for CI images for `HEAD`, then installs the chart and runs a smoke test through the Gateway:
 
-For more detailed information on specific aspects of this project, please refer to the following documents:
+```bash
+cp deploy/helm/ems/secrets.local.yaml.example deploy/helm/ems/secrets.local.yaml   # set passwords
+bash deploy/lab-deploy.sh
+kubectl -n ems port-forward svc/ems 18080:80    # http://127.0.0.1:18080/
+```
 
-*   **[API Documentation (API_DOC.md)](API_DOC.md)**: Detailed information about the available API endpoints.
-*   **[Local Deployment Guide (local-deploy.md)](local-deploy.md)**: Step-by-step instructions for running the application locally using Docker Compose.
-*   **[Kubernetes Deployment Guide (k8s-deploy.md)](k8s-deploy.md)**: Comprehensive guide for deploying the application to Kubernetes.
-*   **[Kubernetes Configuration Details (kubernetes.md)](kubernetes.md)**: OKE-specific configurations, node architecture, resource tuning, and best practices for Kubernetes.
-*   **[System Architecture (architecture.md)](architecture.md)**: In-depth explanation of the system architecture, microservice interactions, design patterns, and best practices.
+The smoke test checks:
+- the frontend loads
+- creating a duplicate department returns 409
+- the department cache answers
+- an employee is created and read, including its department through Feign
+- the `employee.created` event raises the department's stats
 
----
-*This README was consolidated from multiple project documentation files.*
+**With Kustomize instead of Helm:**
+
+```bash
+cp deploy/kustomize/base/secrets.env.example deploy/kustomize/base/secrets.env
+bash deploy/kustomize/verify.sh     # renders lab + full overlays, diffs lab against the cluster
+```
+
+The `full` overlay is for a bigger cluster: 3 api-gateways, HPA 2–6, KEDA 2–8, 12/16 Gi quota.
+
+**Without Kubernetes:**
+
+```bash
+cd deploy/compose && cp .env.example .env && docker compose up -d   # http://127.0.0.1:18080/
+```
+
+## Verified behaviour
+
+| Check | Result | Script |
+|---|---|---|
+| NetworkPolicy | blocked flows time out, allowed flows succeed | `deploy/drills/section-e.sh` |
+| Circuit breaker | department-service at 0 → employee GET still 200 with fallback, recovers | `section-e.sh` |
+| HPA | employee-service 1 → 2 at 78% CPU under k6 | `section-e.sh` |
+| KEDA | department-service 1 → 2 at queue depth 94, drained, DLQ empty | `section-e.sh` |
+| PDB during drain | second drain refused, 103/103 requests OK | `section-e.sh` |
+| Cluster upgrade | v1.36.6 → v1.37.2 with EMS running | `deploy/drills/upgrade-workers.sh` |
+| etcd | snapshot, then restore of a deleted object | manual: `etcdctl snapshot save` / `restore` |
+| RBAC | 12/12 `kubectl auth can-i` checks, including `--subresource` | `deploy/drills/rbac-users.sh` |
+| Break/fix drills | 9 of 9 | `deploy/drills/runbook-app.sh`, `runbook-node.sh` |
+| Metrics | 4 targets; heap and request rate per service | `deploy/observability/metrics.sh` |
+| Tracing | one request → one trace: 3 services, 10 spans, 46–70 ms | `deploy/observability/tracing.sh check` |
+
+The tracing request goes gateway → employee-service (with its `SELECT`) → Feign → department-service, where the department comes from the Redis cache, not MySQL.
+
+## Repository layout
+
+```
+api-gateway/  employee-service/  department-service/  frontend/   services and Dockerfiles
+deploy/helm/ems/          Helm chart (the source of truth)
+deploy/kustomize/         base (chart via helmCharts + secretGenerator), overlays lab and full
+deploy/lab-deploy.sh      install/upgrade + smoke test
+deploy/drills/            section E checks, upgrade, RBAC, runbook drills
+deploy/observability/     Prometheus + Grafana, Jaeger + OTel agent
+deploy/compose/           local run without Kubernetes
+loadtest/k6/              load profiles (PROFILE=drill)
+docs/                     design, architecture, runbook
+.github/workflows/ci.yml  multi-arch images to GHCR
+```
+
+## Not done yet
+
+- Spring Boot 3 and Micrometer Tracing (replacing the agent).
+- Loki for logs (left out for memory).
+- An HA control plane: the lab has one control-plane node, and stacked versus external etcd is documented only.

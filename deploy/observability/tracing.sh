@@ -75,6 +75,6 @@ kubectl -n ems top pods --no-headers | awk '{print "  "$1, $3}'
 cat <<MSG
 
 DONE. Jaeger UI:  kubectl -n $M port-forward svc/jaeger 16686:16686  ->  http://127.0.0.1:16686
-Pick service api-gateway, find a POST /api/v1/employee... trace, open it: the Feign call to department-service
-and the RabbitMQ publish -> consume hop are child spans. Screenshot it for the README.
+Open the trace printed above (UI link) and screenshot it for the README: the gateway span, the
+employee-service span with its SELECT, and the Feign call into department-service (Redis GET, no SELECT = cache hit).
 MSG
