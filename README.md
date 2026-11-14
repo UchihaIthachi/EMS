@@ -1,6 +1,6 @@
 # Employee Management System (EMS) on Kubernetes
 
-Spring Boot microservices (employees, departments, API gateway, React frontend) running on a three-node **kubeadm** cluster on a laptop. The cluster has a Helm chart, Kustomize overlays, Gateway API, KEDA, NetworkPolicies, Pod Security `restricted`, RBAC users, Prometheus/Grafana, OpenTelemetry tracing, and a 20-incident [runbook](docs/runbook.md).
+Spring Boot microservices (employees, departments, API gateway, React frontend) running on a three-node **kubeadm** cluster on a laptop. The cluster has a Helm chart, Kustomize overlays, Gateway API, KEDA, NetworkPolicies, Pod Security `restricted`, RBAC users, Prometheus/Grafana, OpenTelemetry tracing, a 22-incident [runbook](docs/runbook.md), and an [architecture atlas](docs/diagrams.md) with 24 diagrams.
 
 This branch (`k8s-native`) is the rewrite. [`main`](https://github.com/UchihaIthachi/EMS/tree/main) is the earlier version.
 
@@ -38,7 +38,7 @@ flowchart LR
   dep --> redis[(Redis<br/>cache)]
 ```
 
-There's one MySQL server with two databases and one user per service. The full design, with requirements, data and event model, every Kubernetes object, the NetworkPolicy matrix, RBAC and resource budget, is in [docs/design.md](docs/design.md). Patterns and failure modes are in [docs/architecture.md](docs/architecture.md). The API is described in [API_DOC.md](API_DOC.md).
+There's one MySQL server with two databases and one user per service. The full design, with requirements, data and event model, every Kubernetes object, the NetworkPolicy matrix, RBAC and resource budget, is in [docs/design.md](docs/design.md). Patterns and failure modes are in [docs/architecture.md](docs/architecture.md). Every flow (circuit breaker, cache-aside, DLQ, idempotent consumer, HPA/KEDA, rollout, delivery, security) is drawn in [docs/diagrams.md](docs/diagrams.md). The API is described in [API_DOC.md](API_DOC.md).
 
 ## What runs where
 
@@ -134,7 +134,7 @@ deploy/drills/            section E checks, upgrade, RBAC, runbook drills
 deploy/observability/     Prometheus + Grafana, Jaeger + OTel agent
 deploy/compose/           local run without Kubernetes
 loadtest/k6/              load profiles (PROFILE=drill)
-docs/                     design, architecture, runbook
+docs/                     design, architecture, diagrams atlas, runbook
 .github/workflows/ci.yml  multi-arch images to GHCR
 ```
 

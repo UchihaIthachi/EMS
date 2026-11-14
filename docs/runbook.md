@@ -1,6 +1,6 @@
 # Runbook
 
-Twenty incidents from moving EMS onto a kubeadm cluster. Incidents 1–8 and 18–20 happened for real during the work. Incidents 9–17 are drills: the scripts break something on purpose, show the symptom, then diagnose, fix and verify it.
+Twenty-two incidents from moving EMS onto a kubeadm cluster. Incidents 1–8 and 18–22 happened for real during the work. Incidents 9–17 are drills: the scripts break something on purpose, show the symptom, then diagnose, fix and verify it.
 
 | Script | Incidents |
 |---|---|
@@ -21,6 +21,7 @@ Each row reads **symptom → cause → fix**.
 | 4 | **Stats never move and `rabbitmqctl list_queues` is empty** → lazy initialization meant the `@RabbitListener` and RabbitAdmin beans were never created → lazy init off |
 | 19 | **Tracing switched on → all three new JVM pods `CrashLoopBackOff`, exit 1, `Error opening zip file ... /otel/opentelemetry-javaagent.jar`;** old pods kept serving → `ADD --chmod=644` also gave the missing parent `/otel` mode 644, so the non-root user could not enter it (`drw-r--r--`) → `RUN mkdir -p /otel` before the `ADD`. Also: `kubectl logs deploy/X` printed the *healthy old* pod; read the failing pod with `--previous` |
 | 20 | **Trace search shows only health checks** → kubelet probes every 5 s are traced too and fill the newest-N search results → send a request with your own W3C `traceparent` and fetch that trace by ID. In Jaeger v2, `/api/v3` is the query API; the old `/api/services` returns 404 |
+| 22 | **Grafana JVM dashboard (grafana.com 4701): every panel "No data"**, while Prometheus had the metrics → the dashboard filters on an `application` label the services didn't set, and its datasource is a `${DS_PROMETHEUS}` placeholder → `MANAGEMENT_METRICS_TAGS_APPLICATION` per service, map the placeholder, and build our own dashboard whose queries were checked against Prometheus first |
 
 ## Workloads and scheduling
 
@@ -32,6 +33,7 @@ Each row reads **symptom → cause → fix**.
 | 13 | **Quota `pods=2` and the Deployment stuck at 2/3:** the error is only on the ReplicaSet (`exceeded quota`). Even after the quota was raised it stayed 2/3: the controller was waiting longer between retries after the failures, and a quota change doesn't wake it up → annotate the ReplicaSet to make it try again |
 | 5 | **`keda-operator` `CrashLoopBackOff` after an etcd restore** (`context canceled`) → the API server was unavailable while it started → delete the pod to reset the back-off |
 | 6 | **Drain refused:** pods use an `emptyDir` for `/tmp` → `--delete-emptydir-data`. Also: busybox `nslookup` with short names is misleading → use the full name (FQDN) |
+| 21 | **`ImagePullBackOff` on a new api-gateway pod**, although the image existed on GHCR and the node had no disk or memory pressure → a transient pull failure. The kubelet retried with back-off and the next pull succeeded. Read the pod events for the real error (`describe pod`) before changing tags or pruning images |
 
 ## Networking and DNS
 
