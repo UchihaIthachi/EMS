@@ -31,6 +31,12 @@ limitRange:
 networkPolicy:
   enabled: true
 
+# Prometheus scraping of /actuator/prometheus (pod annotations + a NetworkPolicy
+# that lets the Prometheus server in `namespace` reach port 8080). Harmless if Prometheus isn't installed.
+metrics:
+  enabled: true
+  namespace: monitoring
+
 # Labels on the kgateway proxy pods for the Gateway below (used by NetworkPolicies).
 gateway:
   enabled: true

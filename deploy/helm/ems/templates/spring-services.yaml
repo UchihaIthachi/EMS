@@ -44,6 +44,11 @@ spec:
       annotations:
         checksum/config: {{ toJson $svc.env | sha256sum | trunc 16 }}
         checksum/secrets: {{ toJson $.Values.secrets | sha256sum | trunc 16 }}
+        {{- if $.Values.metrics.enabled }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /actuator/prometheus
+        {{- end }}
     spec:
       serviceAccountName: {{ $name }}
       automountServiceAccountToken: false

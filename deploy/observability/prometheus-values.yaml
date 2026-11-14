@@ -1,0 +1,14 @@
+# prometheus-community/prometheus, trimmed for a 16 GB laptop: server only, 6h in memory-backed storage.
+alertmanager: { enabled: false }
+prometheus-pushgateway: { enabled: false }
+prometheus-node-exporter: { enabled: false }
+kube-state-metrics: { enabled: false }
+server:
+  retention: 6h
+  persistentVolume: { enabled: false }
+  global: { scrape_interval: 30s, evaluation_interval: 30s }
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { memory: 512Mi }
+# The chart's default scrape config already has the `kubernetes-pods` job, which keeps pods
+# annotated prometheus.io/scrape=true and uses prometheus.io/port and prometheus.io/path.

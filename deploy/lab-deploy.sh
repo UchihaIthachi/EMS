@@ -40,7 +40,16 @@ kubectl label namespace $NS --overwrite \
   pod-security.kubernetes.io/enforce=restricted pod-security.kubernetes.io/warn=restricted pod-security.kubernetes.io/audit=restricted
 
 step "4. helm upgrade --install"
-helm upgrade --install ems "$CHART" -n $NS -f "$CHART/secrets.local.yaml" --set image.tag="$TAG"
+# Helm 4 uses server-side apply. Fields changed by hand (kubectl set image/patch/rollout undo in the drills)
+# are owned by another field manager, and the upgrade fails with "conflict ... with kubectl".
+# The chart is the source of truth in this lab, so take those fields back. (runbook 18)
+echo "  fields owned by other managers before the upgrade:"
+kubectl -n $NS get deploy,svc,netpol -o json 2>/dev/null | python3 -c '
+import json,sys
+for o in json.load(sys.stdin)["items"]:
+    m={f["manager"] for f in o["metadata"].get("managedFields",[]) if f.get("operation")=="Update" and f["manager"].startswith("kubectl")}
+    if m: print("   ", o["kind"], o["metadata"]["name"], sorted(m))' || true
+helm upgrade --install ems "$CHART" -n $NS -f "$CHART/secrets.local.yaml" --set image.tag="$TAG" --force-conflicts
 
 step "5. Data tier"
 kubectl -n $NS rollout status statefulset/mysql --timeout=300s
