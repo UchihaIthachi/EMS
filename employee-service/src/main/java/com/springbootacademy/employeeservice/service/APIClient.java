@@ -5,8 +5,8 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-//@FeignClient(url = "http://localhost:8081",value = "DEPARTMENT-SERVICE")
-@FeignClient(name = "DEPARTMENT-SERVICE") //get the application name from properties file.
+// Fixed URL resolved by Kubernetes DNS (no service registry). Override with CLIENTS_DEPARTMENT_URL.
+@FeignClient(name = "department-service", url = "${clients.department.url}")
 public interface APIClient {
 
     @GetMapping("/api/v1/department-controller/{department-code}")

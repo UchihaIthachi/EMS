@@ -1,10 +1,8 @@
 <configuration>
-  <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-    <destination>logstash:5000</destination>
-    <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
-  </appender>
-
+  <!-- Logs go to stdout only; Kubernetes collects container output. -->
+  <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+  <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
   <root level="INFO">
-    <appender-ref ref="LOGSTASH" />
+    <appender-ref ref="CONSOLE"/>
   </root>
 </configuration>

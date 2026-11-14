@@ -1,36 +1,18 @@
-# # -------- STAGE 1: Build --------
-#     FROM maven:3.9.6-eclipse-temurin-17 AS builder
+# syntax=docker/dockerfile:1
+# Build the JAR once on the build machine's own architecture (a JAR is platform-independent),
+# then copy it into a small JRE image for each target platform.
+FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /src
+COPY pom.xml .
+COPY src ./src
+RUN --mount=type=cache,target=/root/.m2 mvn -B -q -DskipTests package && cp target/*.jar /app.jar
 
-#     WORKDIR /app
-    
-#     # 1. Copy just the Maven build files first (to leverage Docker layer caching)
-#     COPY pom.xml .
-#     COPY mvnw .
-#     COPY .mvn .mvn
-    
-#     # 2. Download dependencies (this layer is cached unless pom.xml changes)
-#     RUN mvn dependency:go-offline
-    
-#     # 3. Now copy the rest of the source code
-#     COPY . .
-    
-#     # 4. Build the JAR (skip tests to speed up)
-#     RUN mvn clean package -DskipTests
-    
-#     # -------- STAGE 2: Run --------
-#     FROM openjdk:17-jdk-slim
-    
-#     VOLUME /tmp
-    
-#     COPY --from=builder /app/target/*.jar app.jar
-    
-#     EXPOSE 8084
-    
-#     ENTRYPOINT ["java", "-jar", "/app.jar"]
-
-FROM --platform=linux/arm64 arm64v8/openjdk:17-jdk-slim
-RUN apt-get update && apt-get install -y curl
-VOLUME /tmp
-COPY target/*.jar app.jar
-EXPOSE 8082
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+FROM eclipse-temurin:17-jre
+RUN useradd --system --uid 10001 --no-create-home app
+WORKDIR /app
+COPY --from=build /app.jar /app/app.jar
+USER 10001
+EXPOSE 8080
+# Sized for small pods: heap follows the container memory limit.
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError"
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
