@@ -33,49 +33,41 @@ kubectl -n ems get cm employee-service -o jsonpath='{.data.JAVA_TOOL_OPTIONS}' |
 kubectl -n ems logs deploy/employee-service -c app | grep -m1 'opentelemetry-javaagent' || echo "  (agent banner not found in logs; checking traces anyway)"
 fi
 
-step "4. Traces (the smoke test above made requests; wait for the batch exporter)"
-kubectl -n $M port-forward svc/jaeger 16686:16686 >/dev/null 2>&1 & PF=$!; trap 'kill $PF 2>/dev/null || true' EXIT
-sleep 15
-J=http://127.0.0.1:16686
-for path in /api/services /api/v3/services; do
-  printf '  GET %-18s HTTP %s\n' "$path" "$(curl -s -o /dev/null -w '%{http_code}' $J$path)"
-done
-# Jaeger v2: /api/v3 (OTLP JSON) is the stable query API; the legacy /api/* is the UI's internal API.
-curl -s $J/api/v3/services | python3 -c 'import json,sys; print("  services:", sorted(json.load(sys.stdin).get("services") or []))' \
-  || { echo "  raw:"; curl -s $J/api/v3/services | head -c 300; echo; }
-ok=0; r=
+step "4. One request with our own trace id, then fetch exactly that trace"
+# Search by service is useless here: kubelet probes are traced every 5s and fill the most-recent-N results.
+# Instead send a W3C traceparent header; the proxy passes it on and api-gateway continues our trace. (runbook 20)
+kubectl -n ems port-forward svc/ems 18080:80 >/dev/null 2>&1 & P1=$!
+kubectl -n $M port-forward svc/jaeger 16686:16686 >/dev/null 2>&1 & P2=$!
+trap 'kill $P1 $P2 2>/dev/null || true' EXIT; sleep 4
+TID=$(openssl rand -hex 16); SID=$(openssl rand -hex 8)
+RP=$(kubectl -n ems get secret mysql -o jsonpath='{.data.root-password}' | base64 --decode)
+EMP=$(kubectl -n ems exec mysql-0 -- env MYSQL_PWD="$RP" mysql -uroot -N -e 'SELECT MAX(id) FROM employee_db.employees' 2>/dev/null | tr -d '\r')
+[ -n "$EMP" ] && [ "$EMP" != NULL ] || die "no employees yet: run deploy/lab-deploy.sh (its smoke test creates one)"
+code=$(curl -s -o /dev/null -w '%{http_code}' -H "traceparent: 00-$TID-$SID-01" http://127.0.0.1:18080/api/v1/employee-service/$EMP)
+echo "  trace id $TID   GET employee $EMP -> HTTP $code"
+out=
 for i in 1 2 3 4 5 6; do
-  start=$(python3 -c 'import datetime as d; print((d.datetime.now(d.timezone.utc)-d.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"))')
-  end=$(python3 -c 'import datetime as d; print(d.datetime.now(d.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))')
-  r=$(curl -s -G $J/api/v3/traces --data-urlencode query.service_name=api-gateway \
-        --data-urlencode query.start_time_min=$start --data-urlencode query.start_time_max=$end \
-        --data-urlencode query.search_depth=50 | python3 -c '
-import json,sys,collections
-d=json.load(sys.stdin)
-res=d.get("result",d)
-traces=collections.defaultdict(lambda:{"svcs":set(),"spans":[]})
-for rs in res.get("resourceSpans",[]):
-    svc=next((a["value"].get("stringValue") for a in rs.get("resource",{}).get("attributes",[]) if a["key"]=="service.name"),"?")
-    for ss in rs.get("scopeSpans",[]):
-        for sp in ss.get("spans",[]):
-            t=traces[sp["traceId"]]; t["svcs"].add(svc); t["spans"].append(sp)
-if traces:
-    tid,t=max(traces.items(),key=lambda kv:(len(kv[1]["svcs"]),len(kv[1]["spans"])))
-    root=min(t["spans"],key=lambda s:int(s["startTimeUnixNano"]))
-    dur=(int(root["endTimeUnixNano"])-int(root["startTimeUnixNano"]))/1e6
-    print(len(t["svcs"]),tid,",".join(sorted(t["svcs"])),len(t["spans"]),root["name"].replace("|","/"),round(dur,1),sep="|")
-' 2>/dev/null || true)
-  [ -n "$r" ] && [ "${r%%|*}" -ge 3 ] && { ok=1; break; }
   sleep 10
+  out=$(curl -s "http://127.0.0.1:16686/api/v3/traces/$TID" | python3 -c '
+import json,sys
+d=json.load(sys.stdin); rs=d.get("result",d).get("resourceSpans",[])
+if not rs: sys.exit(1)
+rows=[]
+for r in rs:
+    svc=next((a["value"]["stringValue"] for a in r["resource"]["attributes"] if a["key"]=="service.name"),"?")
+    for ss in r.get("scopeSpans",[]):
+        for s in ss["spans"]:
+            rows.append((int(s["startTimeUnixNano"]),svc,s["name"],(int(s["endTimeUnixNano"])-int(s["startTimeUnixNano"]))/1e6))
+rows.sort(); t0=rows[0][0]
+print(len({r[1] for r in rows}))
+print(f"  services: {sorted({r[1] for r in rows})}   spans: {len(rows)}")
+for st,svc,name,ms in rows: print(f"  +{(st-t0)/1e6:7.1f}ms {ms:7.1f}ms  {svc:20} {name}")
+' 2>/dev/null) && break
 done
-[ -n "$r" ] || { echo "  raw /api/v3/traces reply:"; curl -s -G $J/api/v3/traces --data-urlencode query.service_name=api-gateway \
-  --data-urlencode query.start_time_min=$start --data-urlencode query.start_time_max=$end | head -c 400; echo; }
-[ -n "$r" ] || die "no traces for api-gateway (check: kubectl -n ems logs deploy/api-gateway -c app | grep -i otel)"
-IFS='|' read -r n tid svcs spans rootop dur <<< "$r"
-echo "  widest trace: $tid"
-echo "  services in it ($n): $svcs"
-echo "  spans: $spans   root: $rootop   duration: ${dur}ms"
-[ "$ok" = 1 ] && echo "  gateway -> employee -> department in ONE trace: ok" || echo "  only $n service(s) in the widest trace so far"
+[ -n "$out" ] || die "trace $TID not in Jaeger after 60s (check: kubectl -n ems logs deploy/api-gateway -c app | grep -i otel)"
+n=$(echo "$out" | head -1); echo "$out" | tail -n +2
+[ "$n" -ge 3 ] && echo "  gateway -> employee -> department in ONE trace: ok" || die "only $n service(s) in the trace"
+echo "  UI: http://127.0.0.1:16686/trace/$TID (while a port-forward to svc/jaeger runs)"
 
 step "5. Headroom after"
 kubectl top nodes
