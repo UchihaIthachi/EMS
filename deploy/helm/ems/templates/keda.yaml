@@ -5,7 +5,7 @@ apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication
 metadata:
   name: {{ $name }}-rabbitmq
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
   labels: {{- include "ems.labels" (dict "ctx" $ "name" $name) | nindent 4 }}
 spec:
   secretTargetRef:
@@ -15,7 +15,7 @@ apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
   name: {{ $name }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
   labels: {{- include "ems.labels" (dict "ctx" $ "name" $name) | nindent 4 }}
 spec:
   scaleTargetRef: { name: {{ $name }} }

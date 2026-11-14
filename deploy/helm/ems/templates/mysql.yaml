@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mysql
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
   labels: {{- include "ems.labels" $ctx | nindent 4 }}
 data:
   ems.cnf: |
@@ -29,7 +29,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: mysql
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
   labels: {{- include "ems.labels" $ctx | nindent 4 }}
 automountServiceAccountToken: false
 ---
@@ -37,7 +37,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mysql-headless
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
   labels: {{- include "ems.labels" $ctx | nindent 4 }}
 spec:
   clusterIP: None
@@ -49,7 +49,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mysql
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
   labels: {{- include "ems.labels" $ctx | nindent 4 }}
 spec:
   selector: {{- include "ems.selector" $ctx | nindent 4 }}
@@ -60,7 +60,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: mysql
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
   labels: {{- include "ems.labels" $ctx | nindent 4 }}
 spec:
   serviceName: mysql-headless

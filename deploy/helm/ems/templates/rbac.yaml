@@ -3,7 +3,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: ems-developer
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
 rules:
   - apiGroups: [""]
     resources: [pods, pods/log, services, endpoints, configmaps, events, persistentvolumeclaims]
@@ -19,7 +19,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: ems-operator
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
 rules:
   - apiGroups: [""]
     resources: [pods, pods/log, services, endpoints, configmaps, events, persistentvolumeclaims]
@@ -44,7 +44,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: ems-developer
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
 subjects:
   - { kind: User, name: {{ .Values.rbac.developerUser }}, apiGroup: rbac.authorization.k8s.io }
 roleRef: { kind: Role, name: ems-developer, apiGroup: rbac.authorization.k8s.io }
@@ -53,7 +53,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: ems-operator
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
 subjects:
   - { kind: User, name: {{ .Values.rbac.operatorUser }}, apiGroup: rbac.authorization.k8s.io }
 roleRef: { kind: Role, name: ems-operator, apiGroup: rbac.authorization.k8s.io }

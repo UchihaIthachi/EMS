@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: rabbitmq
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
   labels: {{- include "ems.labels" $ctx | nindent 4 }}
 data:
   10-ems.conf: |
@@ -15,7 +15,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rabbitmq
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
   labels: {{- include "ems.labels" $ctx | nindent 4 }}
 automountServiceAccountToken: false
 ---
@@ -23,7 +23,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: rabbitmq-headless
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
   labels: {{- include "ems.labels" $ctx | nindent 4 }}
 spec:
   clusterIP: None
@@ -35,7 +35,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: rabbitmq
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
   labels: {{- include "ems.labels" $ctx | nindent 4 }}
 spec:
   selector: {{- include "ems.selector" $ctx | nindent 4 }}
@@ -46,7 +46,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: rabbitmq
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $.Release.Namespace }}
   labels: {{- include "ems.labels" $ctx | nindent 4 }}
 spec:
   serviceName: rabbitmq-headless
