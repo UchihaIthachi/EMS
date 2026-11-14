@@ -1,3 +1,6 @@
 deploy/.env
 deploy/nginx-logs/
 *.log
+
+# Helm secrets
+*.local.yaml

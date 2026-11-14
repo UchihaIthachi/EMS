@@ -1,0 +1,9 @@
+EMS {{ .Chart.AppVersion }} installed in namespace {{ .Release.Namespace }} (images: {{ .Values.image.registry }}/ems-*:{{ .Values.image.tag }}).
+
+Watch it come up (JVMs take 1-2 minutes):
+  kubectl -n {{ .Release.Namespace }} get pods -w
+
+Open it from your Mac:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ .Values.gateway.name }} 18080:80
+  curl http://127.0.0.1:18080/api/v1/department-controller/ENG
+  open http://127.0.0.1:18080/

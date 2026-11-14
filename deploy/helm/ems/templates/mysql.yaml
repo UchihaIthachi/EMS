@@ -1,0 +1,113 @@
+{{- $ctx := dict "ctx" . "name" "mysql" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+data:
+  ems.cnf: |
+    [mysqld]
+    # Lab sizing: small buffer pool, no performance_schema
+    innodb_buffer_pool_size=64M
+    performance_schema=OFF
+    max_connections=60
+    skip-name-resolve
+  01-ems-databases.sh: |
+    # One MySQL server, two databases, one user per service with access to its own database only.
+    docker_process_sql <<-EOSQL
+      CREATE DATABASE IF NOT EXISTS employee_db;
+      CREATE DATABASE IF NOT EXISTS department_db;
+      CREATE USER IF NOT EXISTS 'employee'@'%' IDENTIFIED BY '${EMPLOYEE_DB_PASSWORD}';
+      CREATE USER IF NOT EXISTS 'department'@'%' IDENTIFIED BY '${DEPARTMENT_DB_PASSWORD}';
+      GRANT ALL PRIVILEGES ON employee_db.* TO 'employee'@'%';
+      GRANT ALL PRIVILEGES ON department_db.* TO 'department'@'%';
+      FLUSH PRIVILEGES;
+    EOSQL
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mysql
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-headless
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+spec:
+  clusterIP: None
+  selector: {{- include "ems.selector" $ctx | nindent 4 }}
+  ports:
+    - { name: mysql, port: 3306 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+spec:
+  selector: {{- include "ems.selector" $ctx | nindent 4 }}
+  ports:
+    - { name: mysql, port: 3306, targetPort: mysql }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+spec:
+  serviceName: mysql-headless
+  replicas: 1
+  selector:
+    matchLabels: {{- include "ems.selector" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "ems.labels" $ctx | nindent 8 }}
+    spec:
+      serviceAccountName: mysql
+      automountServiceAccountToken: false
+      priorityClassName: ems-data
+      terminationGracePeriodSeconds: 60
+      securityContext: {{- include "ems.podSecurity" (dict "uid" 999) | nindent 8 }}
+      containers:
+        - name: mysql
+          image: {{ .Values.mysql.image }}
+          ports:
+            - { name: mysql, containerPort: 3306 }
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: mysql, key: root-password } }
+            - name: EMPLOYEE_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: mysql, key: employee-password } }
+            - name: DEPARTMENT_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: mysql, key: department-password } }
+          startupProbe:
+            exec: { command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$MYSQL_ROOT_PASSWORD\" --silent"] }
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            exec: { command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$MYSQL_ROOT_PASSWORD\" --silent"] }
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            exec: { command: ["sh", "-c", "mysql -h 127.0.0.1 -uroot -p\"$MYSQL_ROOT_PASSWORD\" -e 'SELECT 1' >/dev/null"] }
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources: {{- toYaml .Values.mysql.resources | nindent 12 }}
+          securityContext: {{- include "ems.containerSecurity" (dict) | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/mysql }
+            - { name: config, mountPath: /etc/mysql/conf.d/ems.cnf, subPath: ems.cnf }
+            - { name: config, mountPath: /docker-entrypoint-initdb.d/01-ems-databases.sh, subPath: 01-ems-databases.sh }
+      volumes:
+        - name: config
+          configMap: { name: mysql }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: {{ .Values.mysql.storage }} }

@@ -1,0 +1,143 @@
+# Lab defaults: sized for two 3 GB workers (~3.2 GB free for apps). See docs/design.md.
+
+image:
+  registry: ghcr.io/uchihaithachi
+  # Commit SHA (full) or branch tag published by CI. Pin a SHA for real deployments.
+  tag: k8s-native
+  pullPolicy: IfNotPresent
+
+# Created by Helm from these values. Put real values in a git-ignored secrets.local.yaml
+# (see secrets.local.yaml.example) or reference existing Secrets.
+secrets:
+  mysqlRootPassword: ""
+  employeeDbPassword: ""
+  departmentDbPassword: ""
+  rabbitmqPassword: ""
+
+priorityClasses:
+  create: true
+
+quota:
+  enabled: true
+  requestsMemory: 3584Mi
+  limitsMemory: 4608Mi
+  pods: "25"
+
+limitRange:
+  enabled: true
+
+networkPolicy:
+  enabled: true
+
+# Labels on the kgateway proxy pods for the Gateway below (used by NetworkPolicies).
+gateway:
+  enabled: true
+  name: ems
+  className: kgateway
+  proxyPodLabels:
+    gateway.networking.k8s.io/gateway-name: ems
+  controllerNamespace: kgateway-system
+
+java:
+  toolOptions: "-XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError"
+  lazyInit: true
+  resources:
+    requests: { cpu: 100m, memory: 384Mi }
+    limits: { memory: 448Mi }
+
+services:
+  api-gateway:
+    image: ems-api-gateway
+    replicas: 2
+    spreadAcrossNodes: true
+    pdb: { minAvailable: 1 }
+    env: {}
+    ingressFrom: [gateway]
+    egressTo:
+      - { app: employee-service, port: 8080 }
+      - { app: department-service, port: 8080 }
+
+  employee-service:
+    image: ems-employee-service
+    replicas: 1
+    hpa: { enabled: true, min: 1, max: 2, cpu: 70 }
+    pdb: { minAvailable: 1, onlyWhenScaled: true }
+    waitFor: ["mysql:3306"]
+    env:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/employee_db?allowPublicKeyRetrieval=true&useSSL=false"
+      SPRING_DATASOURCE_USERNAME: employee
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ems
+      CLIENTS_DEPARTMENT_URL: http://department-service:8080
+      APP_MESSAGE: "Employee service is up (Kubernetes)"
+    secretEnv:
+      - { name: SPRING_DATASOURCE_PASSWORD, secret: mysql, key: employee-password }
+      - { name: SPRING_RABBITMQ_PASSWORD, secret: rabbitmq, key: password }
+    ingressFrom: [api-gateway]
+    egressTo:
+      - { app: department-service, port: 8080 }
+      - { app: mysql, port: 3306 }
+      - { app: rabbitmq, port: 5672 }
+
+  department-service:
+    image: ems-department-service
+    replicas: 1
+    pdb: { minAvailable: 1, onlyWhenScaled: true }
+    keda: { enabled: true, min: 1, max: 3, queue: department.employee-events, messagesPerPod: 20 }
+    waitFor: ["mysql:3306", "rabbitmq:5672"]
+    env:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/department_db?allowPublicKeyRetrieval=true&useSSL=false"
+      SPRING_DATASOURCE_USERNAME: department
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ems
+      SPRING_REDIS_HOST: redis
+      EMS_EVENTS_CONSUMERDELAYMS: "0"
+      APP_MESSAGE: "Department service is up (Kubernetes)"
+    secretEnv:
+      - { name: SPRING_DATASOURCE_PASSWORD, secret: mysql, key: department-password }
+      - { name: SPRING_RABBITMQ_PASSWORD, secret: rabbitmq, key: password }
+    ingressFrom: [api-gateway, employee-service]
+    egressTo:
+      - { app: mysql, port: 3306 }
+      - { app: rabbitmq, port: 5672 }
+      - { app: redis, port: 6379 }
+
+frontend:
+  image: ems-frontend
+  replicas: 1
+  resources:
+    requests: { cpu: 10m, memory: 16Mi }
+    limits: { memory: 64Mi }
+
+mysql:
+  image: mysql:8.4
+  storage: 2Gi
+  resources:
+    requests: { cpu: 100m, memory: 300Mi }
+    limits: { memory: 400Mi }
+
+rabbitmq:
+  image: rabbitmq:3.13
+  user: ems
+  storage: 1Gi
+  resources:
+    requests: { cpu: 50m, memory: 160Mi }
+    limits: { memory: 320Mi }
+
+redis:
+  image: redis:7-alpine
+  maxMemory: 48mb
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 80Mi }
+
+backup:
+  enabled: true
+  schedule: "0 2 * * *"
+  keep: 7
+  storage: 1Gi
+
+rbac:
+  # Users created later with CSRs (see the runbook); bound only inside this namespace.
+  developerUser: ems-developer
+  operatorUser: ems-operator

@@ -1,0 +1,55 @@
+{{- $ctx := dict "ctx" . "name" "redis" }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: redis
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+spec:
+  selector: {{- include "ems.selector" $ctx | nindent 4 }}
+  ports:
+    - { name: redis, port: 6379, targetPort: redis }
+---
+# Cache only: no persistence and no PVC. Losing it costs a few slower reads.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels: {{- include "ems.labels" $ctx | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {{- include "ems.selector" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "ems.labels" $ctx | nindent 8 }}
+    spec:
+      serviceAccountName: redis
+      automountServiceAccountToken: false
+      priorityClassName: ems-data
+      securityContext: {{- include "ems.podSecurity" (dict "uid" 999) | nindent 8 }}
+      containers:
+        - name: redis
+          image: {{ .Values.redis.image }}
+          args: ["--save", "", "--appendonly", "no", "--maxmemory", {{ .Values.redis.maxMemory | quote }}, "--maxmemory-policy", "allkeys-lru"]
+          ports:
+            - { name: redis, containerPort: 6379 }
+          livenessProbe:
+            tcpSocket: { port: redis }
+            periodSeconds: 15
+          readinessProbe:
+            exec: { command: ["redis-cli", "ping"] }
+            periodSeconds: 10
+          resources: {{- toYaml .Values.redis.resources | nindent 12 }}
+          securityContext: {{- include "ems.containerSecurity" (dict "readOnly" true) | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: data
+          emptyDir: { sizeLimit: 16Mi }
